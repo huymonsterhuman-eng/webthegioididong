@@ -10,9 +10,8 @@
                 class="absolute inset-0 w-full h-full object-contain group-hover:scale-105 transition-transform duration-300">
         @else
             <!-- Placeholder -->
-            <div class="absolute inset-0 w-full h-full bg-gray-100 flex items-center justify-center text-gray-400">
-                <i class="fa-solid fa-mobile-screen text-4xl"></i>
-            </div>
+            <img src="{{ Storage::url('img/placeholder.jpg') }}" alt="Placeholder"
+                class="absolute inset-0 w-full h-full object-contain group-hover:scale-105 transition-transform duration-300">
         @endif
 
         @if($product->sale_price && $product->sale_price < $product->price)
@@ -46,12 +45,15 @@
             <div class="mb-3">
                 @if($product->sale_price && $product->sale_price < $product->price)
                     <div class="text-red-600 font-bold text-lg leading-tight">
-                        {{ number_format($product->sale_price, 0, ',', '.') }}₫</div>
+                        {{ number_format($product->sale_price, 0, ',', '.') }}₫
+                    </div>
                     <div class="text-gray-400 line-through text-sm mt-0.5">
-                        {{ number_format($product->price, 0, ',', '.') }}₫</div>
+                        {{ number_format($product->price, 0, ',', '.') }}₫
+                    </div>
                 @else
                     <div class="text-red-600 font-bold text-lg leading-tight">
-                        {{ number_format($product->price, 0, ',', '.') }}₫</div>
+                        {{ number_format($product->price, 0, ',', '.') }}₫
+                    </div>
                 @endif
             </div>
 
@@ -71,7 +73,7 @@
                 id: {{ $product->id }},
                 name: '{{ addslashes($product->name) }}',
                 price: {{ $product->sale_price && $product->sale_price < $product->price ? $product->sale_price : $product->price }},
-                image: '{{ $product->image ? Storage::url($product->image) : '' }}'
+                image: '{{ $product->image ? Storage::url($product->image) : Storage::url("img/placeholder.jpg") }}'
             })"
             class="w-full py-2 border border-brand-blue text-brand-blue rounded hover:bg-brand-blue hover:text-white transition font-medium text-sm mt-auto">
             Thêm vào rỏ
