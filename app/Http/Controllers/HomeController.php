@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Category;
 use App\Models\Product;
+use App\Models\Post;
 
 class HomeController extends Controller
 {
@@ -30,6 +31,9 @@ class HomeController extends Controller
                 ->get();
         }
 
-        return view('home', compact('categories', 'hotProducts', 'categoryProducts'));
+        // Load some posts
+        $posts = Post::orderBy('date', 'desc')->take(3)->get();
+
+        return view('home', compact('categories', 'hotProducts', 'categoryProducts', 'posts'));
     }
 }

@@ -76,7 +76,7 @@
                 image: '{{ $product->image ? Storage::url($product->image) : Storage::url("img/placeholder.jpg") }}'
             })"
             class="w-full py-2 border border-brand-blue text-brand-blue rounded hover:bg-brand-blue hover:text-white transition font-medium text-sm mt-auto">
-            Thêm vào rỏ
+            Thêm vào giỏ
         </button>
     </div>
 </div>

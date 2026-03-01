@@ -65,8 +65,9 @@
                 <button class="lg:hidden text-2xl pr-2">
                     <i class="fa-solid fa-bars"></i>
                 </button>
-                <a href="/" class="text-2xl font-black tracking-tighter">
-                    TGDĐ<span class="text-sm font-normal">.com</span>
+                <a href="/" class="flex-shrink-0">
+                    <img src="{{ asset('images/logo.png') }}" alt="The Gioi Di Dong"
+                        class="h-10 hover:scale-105 transition-transform duration-300">
                 </a>
             </div>
 

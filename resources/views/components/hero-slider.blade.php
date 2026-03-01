@@ -1,9 +1,9 @@
 <div x-data="{
         activeSlide: 1,
         slides: [
-            '/images/banner1.jpg',
-            '/images/banner2.jpg',
-            '/images/banner3.jpg'
+            '/storage/banners/banner1.jpg',
+            '/storage/banners/banner2.jpg',
+            '/storage/banners/banner3.jpg'
         ],
         init() {
             setInterval(() => {
