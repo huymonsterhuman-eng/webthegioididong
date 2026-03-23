@@ -7,9 +7,23 @@ use App\Models\Product;
 
 class ProductController extends Controller
 {
-    public function show($slug, $id)
+    public function search(Request $request)
     {
-        $product = Product::with(['category', 'brand'])->where('slug', $slug)->firstOrFail();
+        $query = $request->input('q');
+
+        $products = Product::where(function ($q) use ($query) {
+            $q->where('name', 'like', "%{$query}%")
+                ->orWhere('description', 'like', "%{$query}%");
+        })
+            ->paginate(20)
+            ->withQueryString();
+
+        return view('search', compact('products', 'query'));
+    }
+
+    public function show($categorySlug, $productSlug)
+    {
+        $product = Product::with(['category', 'brand'])->where('slug', $productSlug)->firstOrFail();
 
         // Increase views
         $product->increment('views');

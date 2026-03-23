@@ -47,4 +47,14 @@ class Product extends Model
     {
         return $this->hasMany(OrderDetail::class);
     }
+
+    public function reviews()
+    {
+        return $this->hasMany(Review::class);
+    }
+
+    public function averageRating()
+    {
+        return $this->reviews()->where('is_hidden', false)->avg('rating') ?? 0;
+    }
 }

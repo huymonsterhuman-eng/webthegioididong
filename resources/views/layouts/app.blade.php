@@ -8,6 +8,14 @@
 
     <title>{{ config('app.name', 'TheGioiDiDong Clone') }}</title>
 
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="Hệ thống bán lẻ điện thoại, laptop, smartwatch, tablet chính hãng uy tín nhất.">
+    <meta name="keywords" content="điện thoại, laptop, thegioididong, tablet, apple, samsung">
+    <meta property="og:title" content="The Gioi Di Dong Clone - Mua sắm trực tuyến">
+    <meta property="og:description" content="Hệ thống bán lẻ thiết bị công nghệ hàng đầu Việt Nam.">
+    <meta property="og:image" content="{{ asset('images/logo.png') }}">
+    <meta property="og:url" content="{{ url()->current() }}">
+
     <!-- Tailwind CSS (CDN fallback) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -65,16 +73,20 @@
                 <button class="lg:hidden text-2xl pr-2">
                     <i class="fa-solid fa-bars"></i>
                 </button>
-                <a href="/" class="flex-shrink-0">
+                <a href="/"
+                    class="flex-shrink-0 inline-flex items-center justify-center hover:scale-105 transition-transform duration-300 bg-[#ffcc00] text-black font-bold px-2 py-1 rounded"
+                    style="font-family: Arial, sans-serif; font-size: 40px; line-height: 1;">
                     <img src="{{ asset('images/logo.png') }}" alt="The Gioi Di Dong"
-                        class="h-10 hover:scale-105 transition-transform duration-300">
+                        class="h-[40px] w-auto object-contain"
+                        onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';">
+                    <span style="display:none;">TheGioiDiDong</span>
                 </a>
             </div>
 
             <!-- Mega Search Bar -->
             <div class="hidden lg:block relative flex-grow max-w-xl mx-8">
-                <form action="#" method="GET" class="relative">
-                    <input type="text" name="q" placeholder="Bạn tìm gì..."
+                <form action="{{ route('search') }}" method="GET" class="relative">
+                    <input type="text" name="q" placeholder="Bạn tìm gì..." value="{{ request('q') }}"
                         class="w-full rounded-full py-2 pl-4 pr-10 border-0 focus:ring-2 focus:ring-brand-blue outline-none text-sm text-gray-800 shadow-inner">
                     <button type="submit" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">
                         <i class="fa-solid fa-magnifying-glass"></i>
@@ -95,9 +107,11 @@
                             <i class="fa-regular fa-user text-lg"></i>
                             <span>{{ Auth::user()->username }}</span>
                         </div>
-                        <div class="absolute right-0 top-full pt-2 hidden group-hover:block w-48">
+                        <div class="absolute right-0 top-full pt-2 hidden group-hover:block w-48 z-50">
                             <div class="bg-white rounded shadow-lg border text-gray-800 overflow-hidden text-sm">
-                                <a href="#" class="block px-4 py-2 hover:bg-gray-100">Đơn hàng của tôi</a>
+                                <a href="{{ route('my-orders.index') }}" class="block px-4 py-2 hover:bg-gray-100">Đơn hàng
+                                    của tôi</a>
+                                <a href="{{ route('my-vouchers.index') }}" class="block px-4 py-2 hover:bg-gray-100">Kho Voucher</a>
                                 <form method="POST" action="{{ route('logout') }}">
                                     @csrf
                                     <button type="submit"
@@ -126,13 +140,40 @@
         </div>
 
         <!-- Desktop Navigation Categories -->
-        <div class="bg-brand-dark text-white hidden lg:block">
-            <div class="container mx-auto px-8 flex items-center gap-6 text-sm font-medium h-10">
+        <div class="bg-brand-dark text-white hidden lg:block" x-data="{ hoverCat: null }">
+            <div class="container mx-auto px-8 flex items-center gap-8 text-sm font-medium h-10 relative">
                 @php
-                    $navCategories = \App\Models\Category::take(8)->get();
+                    $navCategories = \App\Models\Category::whereNull('parent_id')->where('is_active', true)->with([
+                        'children' => function ($q) {
+                            $q->where('is_active', true)->orderBy('sort_order');
+                        }
+                    ])->orderBy('sort_order')->take(8)->get();
                 @endphp
                 @foreach($navCategories as $cat)
-                    <a href="/categories/{{ $cat->slug }}" class="hover:text-brand-yellow transition">{{ $cat->name }}</a>
+                    <div class="h-full flex items-center relative" @mouseenter="hoverCat = {{ $cat->id }}"
+                        @mouseleave="hoverCat = null">
+
+                        <a href="/categories/{{ $cat->slug }}"
+                            class="hover:text-brand-yellow transition flex items-center gap-1">
+                            {{ $cat->name }}
+                            @if($cat->children->count() > 0)
+                                <i class="fa-solid fa-chevron-down text-[10px] opacity-70"></i>
+                            @endif
+                        </a>
+
+                        @if($cat->children->count() > 0)
+                            <div x-show="hoverCat === {{ $cat->id }}" style="display: none;" x-transition.opacity.duration.150ms
+                                class="absolute top-full left-0 bg-white shadow-xl border rounded-b-lg min-w-[200px] py-2 z-50 text-gray-800">
+                                @foreach($cat->children as $child)
+                                    <a href="/categories/{{ $child->slug }}"
+                                        class="block px-4 py-2 hover:bg-gray-50 hover:text-brand-blue transition whitespace-nowrap">
+                                        {{ $child->name }}
+                                    </a>
+                                @endforeach
+                            </div>
+                        @endif
+
+                    </div>
                 @endforeach
             </div>
         </div>

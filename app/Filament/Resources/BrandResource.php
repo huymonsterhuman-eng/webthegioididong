@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\BrandResource\Pages;
 use App\Filament\Resources\BrandResource\RelationManagers;
+use App\Filament\Traits\HasResourcePermission;
 use App\Models\Brand;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -15,9 +16,17 @@ use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class BrandResource extends Resource
 {
+    use HasResourcePermission;
+    protected static string $requiredPermission = 'manage_brands';
     protected static ?string $model = Brand::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $navigationGroup = '📦 Sản phẩm (Catalog)';
+    protected static ?int $navigationSort = 3;
+    protected static ?string $navigationIcon = 'heroicon-o-check-badge';
+    protected static ?string $navigationLabel = 'Thương hiệu';
+    protected static ?string $modelLabel = 'Thương hiệu';
+    protected static ?string $pluralModelLabel = 'Thương hiệu';
+
 
     public static function form(Form $form): Form
     {

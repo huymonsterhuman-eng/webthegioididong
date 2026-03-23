@@ -8,7 +8,7 @@ class Category extends Model
 {
     use \Illuminate\Database\Eloquent\Factories\HasFactory;
 
-    protected $fillable = ['name', 'slug', 'parent_id', 'description', 'image'];
+    protected $fillable = ['name', 'slug', 'parent_id', 'description', 'image', 'is_active', 'sort_order'];
 
     public function parent(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {

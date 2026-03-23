@@ -34,6 +34,21 @@ class HomeController extends Controller
         // Load some posts
         $posts = Post::orderBy('date', 'desc')->take(3)->get();
 
-        return view('home', compact('categories', 'hotProducts', 'categoryProducts', 'posts'));
+        // Load active vouchers
+        $vouchers = \App\Models\Voucher::where('is_active', true)
+            ->where(function($q) {
+                $q->whereNull('expires_at')
+                  ->orWhere('expires_at', '>', now());
+            })
+            ->orderBy('created_at', 'desc')
+            ->take(4)
+            ->get();
+
+        // Load active banners
+        $heroBanners = \App\Models\Banner::where('is_active', true)
+            ->orderBy('sort_order', 'asc')
+            ->get();
+
+        return view('home', compact('categories', 'hotProducts', 'categoryProducts', 'posts', 'vouchers', 'heroBanners'));
     }
 }

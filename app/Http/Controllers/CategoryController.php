@@ -11,9 +11,12 @@ class CategoryController extends Controller
 {
     public function show(Request $request, $slug)
     {
-        $category = Category::where('slug', $slug)->firstOrFail();
+        $category = Category::where('slug', $slug)->where('is_active', true)->firstOrFail();
 
-        $query = Product::with('brand')->where('category_id', $category->id);
+        $categoryIds = [$category->id];
+        $categoryIds = array_merge($categoryIds, $category->children()->where('is_active', true)->pluck('id')->toArray());
+
+        $query = Product::with('brand')->whereIn('category_id', $categoryIds);
 
         if ($request->has('brand')) {
             $brand = Brand::where('slug', $request->brand)->first();

@@ -16,9 +16,17 @@
             <div class="mt-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <h1 class="text-2xl font-bold text-gray-800">{{ $product->name }}</h1>
                 <div class="flex items-center text-yellow-500 text-sm">
-                    <i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i
-                        class="fa-solid fa-star"></i><i class="fa-solid fa-star-half-stroke"></i>
-                    <a href="#reviews" class="text-brand-blue ml-2 font-medium">12 Đánh giá</a>
+                    @php
+                        $avgRating = round($product->averageRating());
+                    @endphp
+                    @for($i = 1; $i <= 5; $i++)
+                        @if($i <= $avgRating)
+                            <i class="fa-solid fa-star"></i>
+                        @else
+                            <i class="fa-regular fa-star"></i>
+                        @endif
+                    @endfor
+                    <a href="#reviews" class="text-brand-blue ml-2 font-medium">{{ $product->reviews()->where('is_hidden', false)->count() }} Đánh giá</a>
                 </div>
             </div>
         </div>
@@ -118,6 +126,139 @@
                                 class="w-2/3 font-medium">{{ $product->battery }}</span></li>
                     @endif
                 </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- REVIEWS SECTION -->
+    <div id="reviews" class="container mx-auto px-4 lg:px-8 py-8 mb-8 border-t border-gray-200">
+        <div class="bg-white rounded-lg p-6 lg:p-10 shadow-sm border border-gray-100">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">Đánh giá sản phẩm</h2>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-10">
+                <!-- Left: Overall Rating & Form -->
+                <div class="lg:col-span-4 border-b lg:border-b-0 lg:border-r border-gray-100 pr-0 lg:pr-8 pb-8 lg:pb-0">
+                    <div class="text-center mb-8">
+                        <div class="text-5xl font-black text-brand-blue mb-2">{{ number_format($product->averageRating(), 1) }}</div>
+                        <div class="text-yellow-500 text-xl space-x-1 mb-2">
+                            @for($i = 1; $i <= 5; $i++)
+                                @if($i <= round($product->averageRating()))
+                                    <i class="fa-solid fa-star"></i>
+                                @else
+                                    <i class="fa-regular fa-star text-gray-300"></i>
+                                @endif
+                            @endfor
+                        </div>
+                        <div class="text-sm text-gray-500">{{ $product->reviews()->where('is_hidden', false)->count() }} đánh giá</div>
+                    </div>
+
+                    @auth
+                        @if(!$product->reviews()->where('user_id', auth()->id())->exists())
+                            <div class="bg-gray-50 rounded-lg p-5 border border-gray-200">
+                                <h3 class="font-bold text-gray-800 mb-4">Gửi đánh giá của bạn</h3>
+                                <form action="{{ route('reviews.store', $product) }}" method="POST" enctype="multipart/form-data">
+                                    @csrf
+                                    <!-- Star Rating Input -->
+                                    <div class="mb-4" x-data="{ rating: 0, hoverRating: 0 }">
+                                        <p class="text-sm text-gray-600 mb-2">Bạn chấm sản phẩm này bao nhiêu sao?</p>
+                                        <div class="flex space-x-2 text-2xl text-gray-300 cursor-pointer">
+                                            <template x-for="i in 5">
+                                                <i class="fa-solid fa-star transition-colors"
+                                                   :class="{'text-yellow-500': i <= (hoverRating || rating)}"
+                                                   @mouseenter="hoverRating = i"
+                                                   @mouseleave="hoverRating = 0"
+                                                   @click="rating = i"></i>
+                                            </template>
+                                        </div>
+                                        <input type="hidden" name="rating" :value="rating" required>
+                                        @error('rating') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                                    </div>
+
+                                    <!-- Comment -->
+                                    <div class="mb-4">
+                                        <textarea name="comment" rows="3" placeholder="Xin mời chia sẻ một số cảm nhận về sản phẩm..." class="w-full rounded-md border-gray-300 focus:border-brand-blue focus:ring-brand-blue" required></textarea>
+                                        @error('comment') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                                    </div>
+
+                                    <!-- Image Upload -->
+                                    <div class="mb-4">
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Đính kèm ảnh (tùy chọn)</label>
+                                        <input type="file" name="image" accept="image/*" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-brand-blue file:text-white hover:file:bg-blue-600">
+                                        @error('image') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                                    </div>
+
+                                    <button type="submit" class="w-full bg-brand-blue hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition">
+                                        Gửi Đánh Giá
+                                    </button>
+                                </form>
+                            </div>
+                        @else
+                            <div class="bg-blue-50 text-brand-blue p-4 rounded-lg text-center font-medium border border-blue-100">
+                                Bạn đã đánh giá sản phẩm này. Cảm ơn phản hồi của bạn!
+                            </div>
+                        @endif
+                    @else
+                        <div class="bg-gray-50 p-6 rounded-lg text-center border border-gray-200">
+                            <p class="text-gray-600 mb-4">Vui lòng đăng nhập để gửi đánh giá cho sản phẩm này.</p>
+                            <a href="{{ route('login') }}" class="inline-block bg-brand-blue text-white px-6 py-2 rounded font-medium hover:bg-blue-700 transition">Đăng nhập</a>
+                        </div>
+                    @endauth
+                </div>
+
+                <!-- Right: List of Reviews -->
+                <div class="lg:col-span-8 space-y-6">
+                    @php
+                        $reviews = $product->reviews()->where('is_hidden', false)->latest()->get();
+                    @endphp
+
+                    @if($reviews->count() > 0)
+                        @foreach($reviews as $review)
+                            <div class="border-b border-gray-100 pb-6 last:border-0 last:pb-0">
+                                <div class="flex items-center mb-2">
+                                    <div class="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center font-bold text-gray-500 mr-3">
+                                        {{ substr($review->user->username, 0, 1) }}
+                                    </div>
+                                    <div>
+                                        <div class="font-bold text-gray-800">{{ $review->user->username }}</div>
+                                        <div class="text-xs text-gray-500">{{ $review->created_at->diffForHumans() }}</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="text-yellow-500 text-sm mb-2">
+                                    @for($i = 1; $i <= 5; $i++)
+                                        @if($i <= $review->rating)
+                                            <i class="fa-solid fa-star"></i>
+                                        @else
+                                            <i class="fa-regular fa-star text-gray-300"></i>
+                                        @endif
+                                    @endfor
+                                </div>
+
+                                <p class="text-gray-700 mb-3">{{ $review->comment }}</p>
+
+                                @if($review->image)
+                                    <div class="mb-3">
+                                        <img src="{{ Storage::url($review->image) }}" class="h-24 w-24 object-cover rounded shadow-sm border border-gray-200 hover:scale-110 transition cursor-pointer" onclick="window.open(this.src, '_blank')">
+                                    </div>
+                                @endif
+
+                                @if($review->admin_reply)
+                                    <div class="bg-gray-50 p-4 rounded-lg mt-3 border-l-4 border-brand-blue relative">
+                                        <i class="fa-solid fa-reply absolute top-4 right-4 text-gray-300 text-xl"></i>
+                                        <p class="font-bold text-sm text-gray-800 mb-1">QTV Thế Giới Di Động phản hồi:</p>
+                                        <p class="text-sm text-gray-600">{{ $review->admin_reply }}</p>
+                                    </div>
+                                @endif
+                            </div>
+                        @endforeach
+                    @else
+                        <div class="text-center py-12 text-gray-500">
+                            <i class="fa-regular fa-comment-dots text-5xl mb-3 text-gray-300"></i>
+                            <p>Chưa có đánh giá nào cho sản phẩm này.</p>
+                            <p class="text-sm">Hãy là người đầu tiên chia sẻ cảm nhận!</p>
+                        </div>
+                    @endif
+                </div>
             </div>
         </div>
     </div>

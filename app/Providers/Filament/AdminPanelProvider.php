@@ -33,7 +33,14 @@ class AdminPanelProvider extends PanelProvider
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
             ->pages([
-                Pages\Dashboard::class,
+                \App\Filament\Pages\Dashboard::class,
+            ])
+            ->navigationGroups([
+                \Filament\Navigation\NavigationGroup::make('📦 Sản phẩm (Catalog)')->collapsible(true),
+                \Filament\Navigation\NavigationGroup::make('🛒 Kinh doanh (Sales)')->collapsible(true),
+                \Filament\Navigation\NavigationGroup::make('🏭 Kho & Vận chuyển (Logistics)')->collapsible(true),
+                \Filament\Navigation\NavigationGroup::make('📝 Nội dung (Content)')->collapsible(true),
+                \Filament\Navigation\NavigationGroup::make('🔐 Hệ thống (System)')->collapsible(true),
             ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
             ->widgets([

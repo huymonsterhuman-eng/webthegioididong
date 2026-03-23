@@ -1,59 +1,103 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# TheGioiDiDong Clone (Laravel 12 + Filament 3)
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Đây là dự án chuyển đổi toàn diện từ web thương mại điện tử PHP thuần sang môi trường sinh thái hiện đại của Laravel.
 
-## About Laravel
+## 📌 Thông tin dự án
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+Dự án này là một phiên bản clone của website Thế Giới Di Động, tích hợp đầy đủ tính năng dành cho cửa hàng bán lẻ trực tuyến. 
+Các công nghệ và tính năng chính:
+- **Ngôn ngữ & Framework:** Laravel 12, PHP 8.2+.
+- **Giao diện người dùng (Frontend):** Trang chủ tùy biến đầy đủ, bộ lọc danh mục sản phẩm, định tuyến sản phẩm linh hoạt (`/{category}/{product}`). Xây dựng với TailwindCSS và Alpine.js.
+- **Trang quản trị (Admin Dashboard):** Xây dựng bằng Filament v3 mạnh mẽ.
+- **Tính năng mở rộng:** Tích hợp giỏ hàng, xác nhận đơn hàng, chọn nhà vận chuyển, đối tác cung cấp, mã giảm giá (Voucher), và hệ thống bài viết (Blog).
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+---
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## ⚙️ Những thứ cần cài đặt (Yêu cầu hệ thống)
 
-## Learning Laravel
+Để chạy dự án này trên môi trường local, máy tính của bạn cần cài đặt các phần mềm sau:
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+1. **PHP:** Phiên bản `>= 8.2` (Khuyên dùng XAMPP, Laragon hoặc Herd).
+2. **Composer:** Trình quản lý thư viện của PHP.
+3. **Node.js & npm:** Để biên dịch các tài nguyên frontend (TailwindCSS, JS).
+4. **MySQL / MariaDB:** Hệ quản trị cơ sở dữ liệu.
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+---
 
-## Laravel Sponsors
+## 🚀 Cách chạy dự án (Môi trường Local)
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+Thực hiện các bước sau để cấu hình và chạy dự án:
 
-### Premium Partners
+### Bước 1: Clone dự án và sao chép cấu hình
+Di chuyển vào thư mục dự án và sao chép file cấu hình môi trường:
+```bash
+cp .env.example .env
+```
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+### Bước 2: Cài đặt các thư viện (Dependencies)
+Chạy lệnh sau để cài đặt các package PHP và Node.js:
+```bash
+composer install
+npm install
+```
 
-## Contributing
+### Bước 3: Tạo Key cho ứng dụng
+```bash
+php artisan key:generate
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+### Bước 4: Cấu hình Cơ sở dữ liệu
+Mở file `.env` và cập nhật thông tin kết nối tới database MySQL của bạn:
+```env
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=your_database_name # Thay bằng tên database của bạn
+DB_USERNAME=root               # Tên user MySQL (thuờng là root)
+DB_PASSWORD=                   # Mật khẩu (nếu có)
+```
 
-## Code of Conduct
+### Bước 5: Chạy Migration và Seed dữ liệu (Nếu có)
+Tạo các bảng trong database (và thêm dữ liệu mẫu nếu dự án có seed):
+```bash
+php artisan migrate
+# Nếu có seeder thì chạy thêm: php artisan db:seed
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+### Bước 6: Link thư mục Upload (Storage)
+Để hình ảnh lưu trong `storage/app/public` có thể truy cập được từ bên ngoài:
+```bash
+php artisan storage:link
+```
 
-## Security Vulnerabilities
+### Bước 7: Chạy dự án
+Mở 2 terminal tại thư mục dự án, chạy 2 lệnh sau song song:
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+**Terminal 1 (Trình duyệt web backend):**
+```bash
+php artisan serve
+```
 
-## License
+**Terminal 2 (Biên dịch Frontend trực tiếp):**
+```bash
+npm run dev
+```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Truy cập trang web:
+- **Trang người dùng:** `http://localhost:8000`
+- **Trang quản trị (Filament):** `http://localhost:8000/admin` (Cần tạo tài khoản admin hoặc dùng tài khoản seed để đăng nhập).
+
+---
+
+## 📦 Deployment (Đưa lên Hosting/Server)
+
+Khi triển khai lên môi trường Production (như Hostinger/cPanel):
+1. Chạy `composer install --no-dev --optimize-autoloader`.
+2. Chạy `npm run build` để tối ưu hóa Frontend.
+3. Nén mã nguồn (Bỏ qua thư mục `/node_modules`) và tải lên thư mục `public_html` của Domain.
+4. Cấu hình DB trong `.env`, đổi `APP_ENV=production` và `APP_DEBUG=false`.
+5. Tạo symlink cho ảnh, và trỏ Document Root của Domain vào folder `/public` của Laravel.
+6. Xóa cache hệ thống:
+   ```bash
+   php artisan optimize:clear
+   ```

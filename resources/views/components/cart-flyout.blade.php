@@ -42,12 +42,18 @@
                         <div class="flex items-center justify-between mt-2">
                             <span class="text-red-600 font-bold" x-text="formatMoney(item.price)"></span>
                             <!-- Quantity Controls -->
-                            <div class="flex items-center border rounded">
-                                <button @click="updateQuantity(item.id, -1)"
-                                    class="w-7 h-7 flex items-center justify-center bg-gray-50 hover:bg-gray-200 text-gray-600">-</button>
-                                <span class="w-8 text-center text-sm font-medium" x-text="item.quantity"></span>
-                                <button @click="updateQuantity(item.id, 1)"
-                                    class="w-7 h-7 flex items-center justify-center bg-gray-50 hover:bg-gray-200 text-gray-600">+</button>
+                            <div class="flex items-center gap-2">
+                                <div class="flex items-center border rounded">
+                                    <button @click="updateQuantity(item.id, -1)"
+                                        class="w-7 h-7 flex items-center justify-center bg-gray-50 hover:bg-gray-200 text-gray-600">-</button>
+                                    <span class="w-8 text-center text-sm font-medium" x-text="item.quantity"></span>
+                                    <button @click="updateQuantity(item.id, 1)"
+                                        class="w-7 h-7 flex items-center justify-center bg-gray-50 hover:bg-gray-200 text-gray-600">+</button>
+                                </div>
+                                <button @click="updateQuantity(item.id, -item.quantity)"
+                                    class="text-gray-400 hover:text-red-500 transition px-1" title="Xóa sản phẩm">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
                             </div>
                         </div>
                     </div>

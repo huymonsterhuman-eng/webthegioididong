@@ -32,7 +32,7 @@
 
             <figure class="mb-8 rounded-lg overflow-hidden border border-gray-100">
                 <img src="{{ Storage::url($post->image) }}" alt="{{ $post->title }}"
-                    class="w-full h-auto max-h-[500px] object-cover">
+                    class="w-full h-auto max-h-[500px] object-cover" loading="lazy">
             </figure>
 
             <div class="prose prose-lg max-w-none text-gray-800">
