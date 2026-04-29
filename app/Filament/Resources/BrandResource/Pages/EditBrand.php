@@ -13,7 +13,17 @@ class EditBrand extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
-            Actions\DeleteAction::make(),
+            Actions\DeleteAction::make()
+                ->before(function ($record, Actions\DeleteAction $action) {
+                    if ($record->products()->count() > 0) {
+                        \Filament\Notifications\Notification::make()
+                            ->danger()
+                            ->title('Không thể xóa danh mục này vì vẫn còn ' . $record->products()->count() . ' sản phẩm bên trong. Vui lòng chuyển sản phẩm sang danh mục khác trước.')
+                            ->send();
+
+                        $action->cancel();
+                    }
+                }),
         ];
     }
 }

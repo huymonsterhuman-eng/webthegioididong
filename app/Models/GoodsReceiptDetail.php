@@ -13,6 +13,7 @@ class GoodsReceiptDetail extends Model
         'goods_receipt_id',
         'product_id',
         'quantity',
+        'remaining_quantity',
         'import_price',
     ];
 
@@ -28,5 +29,14 @@ class GoodsReceiptDetail extends Model
     public function product()
     {
         return $this->belongsTo(Product::class);
+    }
+
+    protected static function booted()
+    {
+        static::creating(function ($detail) {
+            if ($detail->remaining_quantity === null) {
+                $detail->remaining_quantity = $detail->quantity;
+            }
+        });
     }
 }

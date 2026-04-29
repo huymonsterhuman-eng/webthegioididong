@@ -16,7 +16,7 @@ class UserVoucherController extends Controller
         
         $vouchers = $user->vouchers()->orderByPivot('created_at', 'desc')->get();
         
-        return view('my-vouchers.index', compact('vouchers'));
+        return view('account.vouchers.index', compact('vouchers'));
     }
 
     /**

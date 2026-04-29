@@ -18,23 +18,44 @@ class OrderDetailsRelationManager extends RelationManager
     {
         return $form
             ->schema([
-                Forms\Components\TextInput::make('product.name')
+                Forms\Components\Select::make('product_id')
+                    ->relationship('product', 'name')
                     ->required()
-                    ->maxLength(255),
+                    ->searchable()
+                    ->preload()
+                    ->reactive()
+                    ->afterStateUpdated(function ($state, Forms\Set $set) {
+                        $product = \App\Models\Product::find($state);
+                        if ($product) {
+                            $set('price_at_purchase', $product->price);
+                            $set('product_name', $product->name);
+                            $set('product_image', $product->image);
+                        }
+                    }),
+                Forms\Components\TextInput::make('quantity')
+                    ->numeric()
+                    ->default(1)
+                    ->required(),
+                Forms\Components\TextInput::make('price_at_purchase')
+                    ->label('Price')
+                    ->numeric()
+                    ->required(),
+                Forms\Components\Hidden::make('product_name'),
+                Forms\Components\Hidden::make('product_image'),
             ]);
     }
 
     public function table(Table $table): Table
     {
         return $table
-            ->recordTitleAttribute('product.name')
+            ->recordTitleAttribute('product_name')
             ->columns([
-                Tables\Columns\ImageColumn::make('product.image')
+                Tables\Columns\ImageColumn::make('product_image')
                     ->label('Image')
                     ->getStateUsing(function ($record) {
-                        if (empty($record->product?->image))
+                        if (empty($record->product_image))
                             return url('storage/img/placeholder.jpg');
-                        $img = $record->product->image;
+                        $img = $record->product_image;
                         if (str_starts_with($img, 'http'))
                             return $img;
                         if (str_starts_with($img, 'img/'))
@@ -43,7 +64,7 @@ class OrderDetailsRelationManager extends RelationManager
                     })
                     ->square()
                     ->extraImgAttributes(['loading' => 'lazy', 'class' => 'rounded']),
-                Tables\Columns\TextColumn::make('product.name')
+                Tables\Columns\TextColumn::make('product_name')
                     ->label('Product Name')
                     ->searchable()
                     ->sortable(),
@@ -65,16 +86,13 @@ class OrderDetailsRelationManager extends RelationManager
                 //
             ])
             ->headerActions([
-                // Tables\Actions\CreateAction::make(),
+                // Read-only
             ])
             ->actions([
-                // Tables\Actions\EditAction::make(),
-                // Tables\Actions\DeleteAction::make(),
+                // Read-only
             ])
             ->bulkActions([
-                // Tables\Actions\BulkActionGroup::make([
-                //     Tables\Actions\DeleteBulkAction::make(),
-                // ]),
+                // Read-only
             ]);
     }
 }

@@ -14,6 +14,11 @@
             </button>
         </div>
 
+        <!-- Warning Message -->
+        <div x-show="stockWarning" x-cloak x-transition.opacity class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 mx-4 mt-4 rounded relative" role="alert" style="display: none;">
+            <span class="block sm:inline whitespace-pre-wrap text-sm font-medium" x-text="stockWarning"></span>
+        </div>
+
         <!-- Items -->
         <div class="flex-grow overflow-y-auto p-4 space-y-4 bg-gray-50">
             <template x-if="items.length === 0">
@@ -21,15 +26,13 @@
                     <i class="fa-solid fa-basket-shopping text-6xl opacity-30"></i>
                     <p>Giỏ hàng chưa có sản phẩm nào</p>
                     <button @click="openCart = false"
-                        class="px-6 py-2 bg-brand-yellow text-brand-dark rounded font-medium shadow-sm hover:shadow-md transition">Tiếp
-                        tục mua sắm</button>
+                        class="px-6 py-2 bg-brand-yellow text-brand-dark rounded font-medium shadow-sm hover:shadow-md transition">Tiếp tục mua sắm</button>
                 </div>
             </template>
 
             <template x-for="item in items" :key="item.id">
-                <div class="bg-white border rounded-lg p-3 flex gap-3 shadow-sm">
-                    <div
-                        class="w-20 h-20 bg-gray-100 rounded flex-shrink-0 flex items-center justify-center overflow-hidden">
+                <div class="bg-white border rounded-lg p-3 flex gap-3 shadow-sm relative">
+                    <div class="w-20 h-20 bg-gray-100 rounded flex-shrink-0 flex items-center justify-center overflow-hidden">
                         <template x-if="item.image">
                             <img :src="item.image" class="w-full h-full object-contain">
                         </template>
@@ -40,13 +43,17 @@
                     <div class="flex-grow flex flex-col justify-between">
                         <h3 class="text-sm font-medium text-gray-800 line-clamp-2 leading-snug" x-text="item.name"></h3>
                         <div class="flex items-center justify-between mt-2">
-                            <span class="text-red-600 font-bold" x-text="formatMoney(item.price)"></span>
+                            <div>
+                                <span class="text-red-600 font-bold block" x-text="formatMoney(item.price)"></span>
+                                <span class="text-xs text-gray-500" x-show="item.stock !== undefined">Còn <span x-text="item.stock"></span> sản phẩm</span>
+                            </div>
                             <!-- Quantity Controls -->
                             <div class="flex items-center gap-2">
                                 <div class="flex items-center border rounded">
                                     <button @click="updateQuantity(item.id, -1)"
                                         class="w-7 h-7 flex items-center justify-center bg-gray-50 hover:bg-gray-200 text-gray-600">-</button>
-                                    <span class="w-8 text-center text-sm font-medium" x-text="item.quantity"></span>
+                                    <input type="number" x-model.number="item.quantity" @change="validateQuantity(item.id)" 
+                                        class="w-12 text-center text-sm font-medium border-0 py-1 px-0 ring-0 focus:ring-0" min="1">
                                     <button @click="updateQuantity(item.id, 1)"
                                         class="w-7 h-7 flex items-center justify-center bg-gray-50 hover:bg-gray-200 text-gray-600">+</button>
                                 </div>

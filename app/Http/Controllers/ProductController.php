@@ -11,10 +11,11 @@ class ProductController extends Controller
     {
         $query = $request->input('q');
 
-        $products = Product::where(function ($q) use ($query) {
-            $q->where('name', 'like', "%{$query}%")
-                ->orWhere('description', 'like', "%{$query}%");
-        })
+        $products = Product::with(['category', 'brand', 'primaryImage'])
+            ->where(function ($q) use ($query) {
+                $q->where('name', 'like', "%{$query}%")
+                    ->orWhere('description', 'like', "%{$query}%");
+            })
             ->paginate(20)
             ->withQueryString();
 
@@ -23,12 +24,13 @@ class ProductController extends Controller
 
     public function show($categorySlug, $productSlug)
     {
-        $product = Product::with(['category', 'brand'])->where('slug', $productSlug)->firstOrFail();
+        $product = Product::with(['category', 'brand', 'primaryImage'])->where('slug', $productSlug)->firstOrFail();
 
         // Increase views
         $product->increment('views');
 
-        $relatedProducts = Product::where('category_id', $product->category_id)
+        $relatedProducts = Product::with(['category', 'brand', 'primaryImage'])
+            ->where('category_id', $product->category_id)
             ->where('id', '!=', $product->id)
             ->inRandomOrder()
             ->take(5)

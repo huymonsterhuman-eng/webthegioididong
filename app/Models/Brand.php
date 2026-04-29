@@ -8,7 +8,9 @@ class Brand extends Model
 {
     use \Illuminate\Database\Eloquent\Factories\HasFactory;
 
-    protected $fillable = ['name', 'slug', 'logo'];
+    protected $fillable = ['name', 'slug', 'logo', 'is_active', 'description'];
+
+    protected $casts = ['is_active' => 'boolean'];
 
     public function products(): \Illuminate\Database\Eloquent\Relations\HasMany
     {

@@ -106,25 +106,48 @@ class CreateGoodsReceipt extends Page
 
         $total = collect($this->cart)->sum(fn($item) => (float)$item['quantity'] * (float)$item['import_price']);
 
-        $receipt = GoodsReceipt::create([
-            'supplier_id' => $this->supplier_id,
-            'user_id' => auth()->id(),
-            'total_amount' => $total,
-            'note' => $this->note,
-        ]);
-
-        foreach ($this->cart as $item) {
-            GoodsReceiptDetail::create([
-                'goods_receipt_id' => $receipt->id,
-                'product_id' => $item['product_id'],
-                'quantity' => $item['quantity'],
-                'import_price' => $item['import_price'],
+        \Illuminate\Support\Facades\DB::transaction(function () use ($total) {
+            $receipt = GoodsReceipt::create([
+                'supplier_id' => $this->supplier_id,
+                'user_id' => auth()->id(),
+                'total_amount' => $total,
+                'note' => $this->note,
             ]);
-        }
+
+            $detailedItems = [];
+            foreach ($this->cart as $item) {
+                $detail = GoodsReceiptDetail::create([
+                    'goods_receipt_id' => $receipt->id,
+                    'product_id' => $item['product_id'],
+                    'quantity' => $item['quantity'],
+                    'import_price' => $item['import_price'],
+                ]);
+
+                $detailedItems[] = [
+                    'product_id' => $item['product_id'],
+                    'product_name' => $item['product_name'] ?? Product::find($item['product_id'])->name,
+                    'quantity' => $item['quantity'],
+                    'import_price' => (float)$item['import_price'],
+                    'receipt_detail_id' => $detail->id,
+                ];
+            }
+
+            \App\Services\ActivityLogService::log(
+                'create_manual_receipt',
+                "Đã lập phiếu nhập kho #{$receipt->id} với " . count($detailedItems) . " loại sản phẩm.",
+                'inventory',
+                $receipt,
+                [
+                    'total_amount' => $total,
+                    'supplier_id' => $this->supplier_id,
+                    'item_count' => count($detailedItems),
+                    'detailed_items' => $detailedItems
+                ]
+            );
+        });
 
         Notification::make()
             ->title('Phiếu nhập đã được lưu thành công!')
-            ->body("Mã phiếu: PR-" . str_pad($receipt->id, 4, '0', STR_PAD_LEFT))
             ->success()
             ->send();
 

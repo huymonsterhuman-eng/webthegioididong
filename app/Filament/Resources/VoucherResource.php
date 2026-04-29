@@ -14,7 +14,7 @@ use Filament\Tables\Table;
 class VoucherResource extends Resource
 {
     use HasResourcePermission;
-    protected static string $requiredPermission = 'manage_vouchers';
+    protected static string $requiredPermission = 'view_vouchers';
     protected static ?string $model = Voucher::class;
 
     protected static ?string $navigationGroup = '🛒 Kinh doanh (Sales)';
@@ -106,6 +106,7 @@ class VoucherResource extends Resource
                 //
             ])
             ->actions([
+                Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
             ])

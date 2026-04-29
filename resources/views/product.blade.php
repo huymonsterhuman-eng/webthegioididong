@@ -36,11 +36,22 @@
 
         <!-- Left Column: Images & Overview -->
         <div class="col-span-1 lg:col-span-7 space-y-8">
-            <!-- Main Image -->
             <div
                 class="bg-white rounded-lg p-8 border border-gray-100 shadow-sm flex items-center justify-center min-h-[400px]">
-                @if($product->image)
-                    <img src="{{ Storage::url($product->image) }}" alt="{{ $product->name }}"
+                @php
+                    if ($product->primaryImage) {
+                        $p_imagePath = $product->primaryImage->path;
+                    } else {
+                        $p_imagePath = $product->image;
+                    }
+                    
+                    $p_imgSrc = empty($p_imagePath)
+                        ? asset('storage/img/placeholder.jpg')
+                        : (Str::startsWith($p_imagePath, 'http') ? $p_imagePath : Storage::url($p_imagePath));
+                @endphp
+
+                @if(!empty($p_imagePath))
+                    <img src="{{ $p_imgSrc }}" alt="{{ $product->name }}"
                         class="w-full max-w-md object-contain">
                 @else
                     <i class="fa-solid fa-mobile-screen text-9xl text-gray-200"></i>
@@ -79,6 +90,18 @@
                     @endif
                 </div>
 
+                <div class="mb-4">
+                    @if($product->stock > 0)
+                        <span class="inline-flex items-center gap-1 text-green-600 font-medium bg-green-50 px-3 py-1 rounded-full text-sm border border-green-200">
+                            <i class="fa-solid fa-check-circle"></i> Còn {{ $product->stock }} sản phẩm
+                        </span>
+                    @else
+                        <span class="inline-flex items-center gap-1 text-red-600 font-medium bg-red-50 px-3 py-1 rounded-full text-sm border border-red-200">
+                            <i class="fa-solid fa-xmark-circle"></i> Hết hàng
+                        </span>
+                    @endif
+                </div>
+
                 <!-- Fake Promos -->
                 <div class="border border-brand-blue border-dashed rounded bg-white p-3 mb-6">
                     <p class="text-sm font-bold text-brand-blue mb-2 uppercase">Khuyến mãi & Ưu đãi</p>
@@ -89,13 +112,21 @@
                     </ul>
                 </div>
 
-                <button @click.prevent="addToCart({
-                        id: {{ $product->id }},
-                        name: '{{ addslashes($product->name) }}',
-                        price: {{ $product->sale_price && $product->sale_price < $product->price ? $product->sale_price : $product->price }},
-                        image: '{{ $product->image ? Storage::url($product->image) : '' }}'
-                    })"
-                    class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-lg shadow uppercase text-lg transition">
+                <button 
+                    @if($product->stock > 0)
+                        @click.prevent="addToCart({
+                            id: {{ $product->id }},
+                            name: '{{ addslashes($product->name) }}',
+                            price: {{ $product->sale_price && $product->sale_price < $product->price ? $product->sale_price : $product->price }},
+                            image: '{{ $p_imgSrc }}',
+                            stock: {{ $product->stock }}
+                        })"
+                        class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-lg shadow uppercase text-lg transition"
+                    @else
+                        disabled
+                        class="w-full bg-gray-400 text-white font-bold py-4 rounded-lg shadow uppercase text-lg cursor-not-allowed"
+                    @endif
+                >
                     Mua ngay
                     <span class="block text-xs font-normal Normal">Giao hàng miễn phí hoặc nhận tại shop</span>
                 </button>
@@ -236,9 +267,13 @@
 
                                 <p class="text-gray-700 mb-3">{{ $review->comment }}</p>
 
-                                @if($review->image)
-                                    <div class="mb-3">
-                                        <img src="{{ Storage::url($review->image) }}" class="h-24 w-24 object-cover rounded shadow-sm border border-gray-200 hover:scale-110 transition cursor-pointer" onclick="window.open(this.src, '_blank')">
+                                @if($review->images && is_array($review->images) && count($review->images) > 0)
+                                    <div class="flex flex-wrap gap-2 mb-3">
+                                        @foreach($review->images as $img)
+                                            <img src="{{ Storage::url($img) }}" 
+                                                 class="h-24 w-24 object-cover rounded shadow-sm border border-gray-200 hover:scale-110 transition cursor-pointer" 
+                                                 onclick="window.open(this.src, '_blank')">
+                                        @endforeach
                                     </div>
                                 @endif
 

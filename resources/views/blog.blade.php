@@ -19,7 +19,7 @@
                         <div class="p-6 flex flex-col flex-grow">
                             <div class="flex items-center gap-2 text-xs text-gray-500 mb-3 uppercase font-medium tracking-wide">
                                 <span class="bg-gray-100 px-2 py-1 rounded">{{ $post->category ?? 'Tin tức' }}</span>
-                                <span>{{ \Carbon\Carbon::parse($post->date)->format('d/m/Y') }}</span>
+                                <span>{{ optional($post->published_at)->format('d/m/Y') ?? 'Chưa đăng' }}</span>
                             </div>
                             <h2 class="text-xl font-bold text-gray-800 mb-3 line-clamp-2 hover:text-brand-blue transition">
                                 <a href="/blog/{{ $post->slug }}">{{ $post->title }}</a>

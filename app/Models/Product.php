@@ -11,26 +11,28 @@ class Product extends Model
     protected $fillable = [
         'name',
         'slug',
+        'sku',
         'price',
         'sale_price',
         'image',
-        'images',
         'description',
         'screen',
         'chip',
-        'cameraorsensors',
+        'camera',
         'battery',
         'os',
         'brand_id',
         'category_id',
         'stock',
-        'views'
+        'weight',
+        'is_featured',
+        'views',
     ];
 
     protected $casts = [
-        'images' => 'array',
-        'price' => 'decimal:2',
-        'sale_price' => 'decimal:2',
+        'price'       => 'decimal:2',
+        'sale_price'  => 'decimal:2',
+        'is_featured' => 'boolean',
     ];
 
     public function category(): \Illuminate\Database\Eloquent\Relations\BelongsTo
@@ -43,9 +45,24 @@ class Product extends Model
         return $this->belongsTo(Brand::class);
     }
 
+    public function productImages(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(ProductImage::class)->orderBy('sort_order');
+    }
+
+    public function primaryImage(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(ProductImage::class)->where('is_primary', true);
+    }
+
     public function orderDetails(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(OrderDetail::class);
+    }
+
+    public function collections(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(Collection::class);
     }
 
     public function reviews()

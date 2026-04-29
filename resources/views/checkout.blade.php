@@ -11,6 +11,47 @@
             shippingMethod: 'standard',
             get shippingFee() { return this.shippingMethod === 'express' ? 50000 : 30000; },
             get total() { return Math.max(0, this.subtotal - this.discountAmount) + this.shippingFee; },
+            useSavedAddress: '{{ (isset($addresses) && $addresses->count() > 0) ? "true" : "false" }}',
+            addressId: '{{ (isset($addresses) && $addresses->count() > 0) ? $addresses->first()->id : "" }}',
+            
+            async init() {
+                if (this.localItems.length > 0) {
+                    try {
+                        let ids = this.localItems.map(i => i.id);
+                        let response = await fetch('/cart/stock-check', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                            },
+                            body: JSON.stringify({ product_ids: ids })
+                        });
+                        let data = await response.json();
+                        if (data.success) {
+                            let changed = false;
+                            let changedNames = [];
+                            this.localItems = this.localItems.map(item => {
+                                if (data.stocks[item.id] !== undefined) {
+                                    item.stock = data.stocks[item.id];
+                                    if (item.quantity > item.stock) {
+                                        item.quantity = Math.max(0, item.stock);
+                                        changed = true;
+                                        changedNames.push(item.name);
+                                    }
+                                }
+                                return item;
+                            }).filter(item => item.quantity > 0);
+                            
+                            if (changed) {
+                                alert('Số lượng sản phẩm ' + changedNames.join(', ') + ' trong giỏ hàng đã được cập nhật do thay đổi tồn kho.');
+                            }
+                            localStorage.setItem('cart', JSON.stringify(this.localItems));
+                            window.dispatchEvent(new CustomEvent('cart-updated'));
+                        }
+                    } catch(e) {}
+                }
+            },
+
             removeItem(id) {
                 this.localItems = this.localItems.filter(item => item.id !== id);
                 localStorage.setItem('cart', JSON.stringify(this.localItems));
@@ -66,18 +107,6 @@
         <div x-show="localItems.length > 0" class="max-w-4xl mx-auto" style="display:none;">
             <h1 class="text-2xl font-bold text-gray-800 uppercase mb-6 text-center">Xác nhận đơn hàng</h1>
 
-            @if(session('success'))
-                <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-6 relative" role="alert">
-                    <strong class="font-bold">Thành công!</strong>
-                    <span class="block sm:inline">{{ session('success') }}</span>
-                </div>
-                <!-- Clear cart after successful checkout -->
-                <script>
-                    localStorage.removeItem('cart');
-                    window.location.href = '/';
-                </script>
-            @endif
-
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <!-- Checkout Form -->
                 <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -85,21 +114,75 @@
                     <form action="{{ route('checkout.process') }}" method="POST">
                         @csrf
                         <div class="space-y-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Họ và tên *</label>
-                                <input type="text" name="name" required
-                                    class="w-full border-gray-300 rounded-lg shadow-sm focus:border-brand-blue focus:ring focus:ring-blue-200"
-                                    value="{{ auth()->user()->username ?? '' }}">
+                            @if(isset($addresses) && $addresses->count() > 0)
+                            <div class="pb-3 border-b border-gray-100">
+                                <label class="flex items-center gap-2 cursor-pointer mb-3">
+                                    <input type="radio" value="true" x-model="useSavedAddress" class="text-brand-blue focus:ring-brand-blue">
+                                    <span class="font-medium">Chọn địa chỉ đã lưu</span>
+                                </label>
+                                
+                                <div x-show="useSavedAddress === 'true'" class="space-y-3 pl-6">
+                                    @foreach($addresses as $address)
+                                        <label class="block p-3 border rounded-lg cursor-pointer transition-colors"
+                                               :class="addressId == '{{ $address->id }}' ? 'border-brand-blue bg-blue-50/50' : 'hover:bg-gray-50'">
+                                            <div class="flex gap-3">
+                                                <input type="radio" name="address_id" value="{{ $address->id }}" x-model="addressId" class="mt-1 text-brand-blue focus:ring-brand-blue" :disabled="useSavedAddress !== 'true'">
+                                                <div class="flex-grow">
+                                                    <div class="flex items-center justify-between">
+                                                        <span class="font-bold text-gray-800">{{ $address->name }}</span>
+                                                        @if($address->is_default)
+                                                            <span class="text-[10px] bg-brand-blue text-white px-2 py-0.5 rounded uppercase font-bold tracking-wider rounded-sm text-center">Mặc định</span>
+                                                        @endif
+                                                    </div>
+                                                    <p class="text-sm text-gray-600 mt-1"><i class="fa-solid fa-phone text-gray-400 text-xs w-4"></i> {{ $address->phone }}</p>
+                                                    <p class="text-sm text-gray-600 leading-snug mt-1"><i class="fa-solid fa-location-dot text-gray-400 text-xs w-4"></i> {{ $address->address }}</p>
+                                                </div>
+                                            </div>
+                                        </label>
+                                    @endforeach
+                                </div>
                             </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Số điện thoại *</label>
-                                <input type="text" name="phone" required
-                                    class="w-full border-gray-300 rounded-lg shadow-sm focus:border-brand-blue focus:ring focus:ring-blue-200">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Địa chỉ giao hàng *</label>
-                                <input type="text" name="address" required
-                                    class="w-full border-gray-300 rounded-lg shadow-sm focus:border-brand-blue focus:ring focus:ring-blue-200">
+                            
+                            <label class="flex items-center gap-2 cursor-pointer pt-2">
+                                <input type="radio" value="false" x-model="useSavedAddress" class="text-brand-blue focus:ring-brand-blue">
+                                <span class="font-medium">Nhập địa chỉ mới</span>
+                            </label>
+                            @else
+                                <div class="bg-blue-50 p-4 rounded-md mb-4 flex items-start gap-3 text-brand-blue border border-blue-100">
+                                    <i class="fa-solid fa-circle-info mt-1"></i>
+                                    <div>
+                                        <p class="text-sm font-bold">Vui lòng nhập địa chỉ nhận hàng</p>
+                                        <p class="text-sm">Bạn chưa có địa chỉ lưu sẵn. Vui lòng điền thông tin bên dưới để chúng tôi có thể giao hàng cho bạn.</p>
+                                    </div>
+                                </div>
+                                <input type="hidden" name="use_new_address" value="true">
+                            @endif
+
+                            <div x-show="useSavedAddress === 'false'" class="space-y-4 p-4 border border-gray-100 rounded-lg bg-gray-50 mt-3 shadow-inner">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Họ và tên *</label>
+                                    <input type="text" name="name" :required="useSavedAddress === 'false'"
+                                        class="w-full border-gray-300 rounded-lg shadow-sm focus:border-brand-blue focus:ring focus:ring-blue-200"
+                                        value="{{ auth()->user()->username ?? '' }}">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Số điện thoại *</label>
+                                    <input type="text" name="phone" :required="useSavedAddress === 'false'"
+                                        class="w-full border-gray-300 rounded-lg shadow-sm focus:border-brand-blue focus:ring focus:ring-blue-200">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Địa chỉ giao hàng đầy đủ *</label>
+                                    <textarea name="address" :required="useSavedAddress === 'false'" rows="3"
+                                        class="w-full border-gray-300 rounded-lg shadow-sm focus:border-brand-blue focus:ring focus:ring-blue-200"
+                                        placeholder="Ví dụ: Số 20, Đường CMT8, Phường 5, Quận 3, TP.HCM"></textarea>
+                                </div>
+                                
+                                @if(auth()->check())
+                                <div class="flex items-center gap-2 pt-1">
+                                    <input type="checkbox" id="save_address" name="save_address" value="1" checked class="rounded text-brand-blue focus:ring-brand-blue">
+                                    <label for="save_address" class="text-sm text-gray-600 cursor-pointer">Lưu địa chỉ này vào sổ địa chỉ để sử dụng cho lần sau</label>
+                                </div>
+                                @endif
                             </div>
 
                             <div>
@@ -132,20 +215,55 @@
                                     </label>
                                 </div>
                             </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Phương thức thanh toán</label>
-                                <div class="space-y-2 mt-2">
+                            <div class="mt-6">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Phương thức thanh toán *</label>
+                                <div class="space-y-3">
                                     <label
-                                        class="flex items-center gap-2 p-3 border rounded cursor-pointer hover:bg-gray-50">
+                                        class="flex items-center gap-4 p-4 border hover:border-brand-blue rounded-lg cursor-pointer transition-all duration-200 hover:shadow-sm" 
+                                        :class="$el.querySelector('input:checked') ? 'border-brand-blue ring-1 ring-brand-blue bg-blue-50/20' : 'border-gray-200'">
                                         <input type="radio" name="payment_method" value="cod" checked
-                                            class="text-brand-blue focus:ring-brand-blue">
-                                        <span class="font-medium text-gray-800">Thanh toán khi nhận hàng (COD)</span>
+                                            class="text-brand-blue focus:ring-brand-blue w-5 h-5 mt-0.5 self-start">
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-12 h-12 bg-[#2a9dcc] rounded p-2 flex items-center justify-center shrink-0">
+                                                <i class="fa-solid fa-money-bill-transfer text-white text-xl"></i>
+                                            </div>
+                                            <div>
+                                                <span class="block font-bold text-gray-800">Thanh toán khi nhận hàng (COD)</span>
+                                                <span class="block text-sm text-gray-500">Khách hàng thanh toán bằng tiền mặt cho nhân viên giao hàng</span>
+                                            </div>
+                                        </div>
                                     </label>
+                                    
                                     <label
-                                        class="flex items-center gap-2 p-3 border rounded cursor-pointer hover:bg-gray-50">
+                                        class="flex items-center gap-4 p-4 border hover:border-brand-blue rounded-lg cursor-pointer transition-all duration-200 hover:shadow-sm opacity-90 hover:opacity-100"
+                                        :class="$el.querySelector('input:checked') ? 'border-brand-blue ring-1 ring-brand-blue bg-blue-50/20' : 'border-gray-200'">
                                         <input type="radio" name="payment_method" value="vnpay"
-                                            class="text-brand-blue focus:ring-brand-blue">
-                                        <span class="font-medium text-gray-800">Thanh toán VNPay (Sandbox)</span>
+                                            class="text-brand-blue focus:ring-brand-blue w-5 h-5 mt-0.5 self-start">
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-12 h-12 bg-white border border-gray-100 rounded overflow-hidden flex items-center justify-center shrink-0 p-1">
+                                                <img src="https://cdn.haitrieu.com/wp-content/uploads/2022/10/Logo-VNPAY-QR-1.png" alt="VNPAY" class="w-full object-contain">
+                                            </div>
+                                            <div>
+                                                <span class="block font-bold text-gray-800">Thanh toán VNPay</span>
+                                                <span class="block text-sm text-gray-500">Thanh toán qua thẻ ATM, Internet Banking</span>
+                                            </div>
+                                        </div>
+                                    </label>
+                                    
+                                    <label
+                                        class="flex items-center gap-4 p-4 border hover:border-brand-blue rounded-lg cursor-pointer transition-all duration-200 hover:shadow-sm opacity-90 hover:opacity-100"
+                                        :class="$el.querySelector('input:checked') ? 'border-brand-blue ring-1 ring-brand-blue bg-blue-50/20' : 'border-gray-200'">
+                                        <input type="radio" name="payment_method" value="momo"
+                                            class="text-brand-blue focus:ring-brand-blue w-5 h-5 mt-0.5 self-start">
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-12 h-12 bg-[#A50064] rounded overflow-hidden flex items-center justify-center shrink-0">
+                                                <img src="https://static.mservice.io/img/logo-momo.png" alt="Momo" class="w-full object-contain p-2">
+                                            </div>
+                                            <div>
+                                                <span class="block font-bold text-gray-800">Thanh toán MoMo</span>
+                                                <span class="block text-sm text-gray-500">Thanh toán qua ứng dụng ví điện tử MoMo</span>
+                                            </div>
+                                        </div>
                                     </label>
                                 </div>
                             </div>
@@ -155,9 +273,10 @@
                         <input type="hidden" name="voucher_code" :value="(!voucherError && discountAmount > 0) ? voucherCode : ''">
 
                         <button type="submit"
-                            class="w-full mt-6 bg-brand-blue hover:bg-blue-700 text-white font-bold py-3 rounded-lg shadow-md transition-colors text-lg uppercase"
-                            @click="setTimeout(() => { localStorage.removeItem('cart') }, 500)">
-                            Hoàn tất đặt hàng
+                            class="w-full mt-6 bg-brand-yellow hover:bg-yellow-500 text-brand-dark font-bold py-4 rounded-lg shadow transition-colors text-lg uppercase flex flex-col items-center justify-center border-b-4 border-yellow-600 hover:border-yellow-700 hover:mt-7 hover:mb-[-4px]"
+                            @click="setTimeout(() => { localStorage.removeItem('cart'); window.dispatchEvent(new CustomEvent('cart-updated')); }, 1500)">
+                            <span>Hoàn tất đặt hàng</span>
+                            <span class="text-xs font-normal normal-case mt-0.5 opacity-80">(Xin vui lòng kiểm tra lại đơn hàng trước khi Đặt Mua)</span>
                         </button>
                     </form>
                 </div>

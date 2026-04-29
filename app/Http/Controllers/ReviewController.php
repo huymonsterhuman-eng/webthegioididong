@@ -32,7 +32,7 @@ class ReviewController extends Controller
             'user_id' => $user->id,
             'rating' => $request->rating,
             'comment' => $request->comment,
-            'image' => $imagePath,
+            'images' => $imagePath ? [$imagePath] : null,
         ]);
 
         return back()->with('success', 'Cảm ơn bạn đã đánh giá sản phẩm!');

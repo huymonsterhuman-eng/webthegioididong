@@ -10,7 +10,7 @@
         <div class="mb-12 mt-6 lg:mt-8" x-data="{
             async collectVoucher(id) {
                 try {
-                    const res = await fetch('{{ route('my-vouchers.save') }}', {
+                    const res = await fetch('{{ route('account.vouchers.save') }}', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -86,20 +86,20 @@
             </div>
         </div>
 
-        <!-- Category Grids -->
-        @foreach($categories as $category)
-            @if(isset($categoryProducts[$category->id]) && $categoryProducts[$category->id]->count() > 0)
+        <!-- Collection Grids -->
+        @foreach($collections as $collection)
+            @if(isset($collectionProducts[$collection->id]) && $collectionProducts[$collection->id]->count() > 0)
                 <div class="mb-12 bg-white rounded-lg p-4 shadow-sm border border-gray-100">
                     <div class="flex items-center justify-between mb-4 pb-2 border-b border-gray-100">
                         <h2 class="text-xl font-bold uppercase text-gray-800">
-                            {{ $category->name }}
+                            {{ $collection->name }}
                         </h2>
-                        <a href="/categories/{{ $category->slug }}" class="text-brand-blue hover:underline text-sm font-medium">Xem
+                        <a href="/bo-suu-tap/{{ $collection->slug }}" class="text-brand-blue hover:underline text-sm font-medium">Xem
                             tất cả <i class="fa-solid fa-chevron-right text-xs"></i></a>
                     </div>
 
                     <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
-                        @foreach($categoryProducts[$category->id] as $product)
+                        @foreach($collectionProducts[$collection->id] as $product)
                             <x-product-card :product="$product" />
                         @endforeach
                     </div>
@@ -127,7 +127,8 @@
                                 loading="lazy">
                         </a>
                         <div class="p-4 flex flex-col flex-grow">
-                            <div class="text-xs text-gray-500 mb-2">{{ \Carbon\Carbon::parse($post->date)->format('d/m/Y') }}
+                            <div class="text-xs text-gray-500 mb-2">
+                                {{ optional($post->published_at)->format('d/m/Y') ?? 'Chưa đăng' }}
                             </div>
                             <h3
                                 class="font-bold text-gray-800 mb-2 line-clamp-2 leading-snug group-hover:text-brand-blue transition">

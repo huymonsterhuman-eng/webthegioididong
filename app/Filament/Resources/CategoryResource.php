@@ -17,15 +17,15 @@ use Illuminate\Database\Eloquent\SoftDeletingScope;
 class CategoryResource extends Resource
 {
     use HasResourcePermission;
-    protected static string $requiredPermission = 'manage_categories';
+    protected static string $requiredPermission = 'view_categories';
     protected static ?string $model = Category::class;
 
     protected static ?string $navigationGroup = '📦 Sản phẩm (Catalog)';
     protected static ?int $navigationSort = 2;
     protected static ?string $navigationIcon = 'heroicon-o-tag';
-    protected static ?string $navigationLabel = 'Danh mục';
-    protected static ?string $modelLabel = 'Danh mục';
-    protected static ?string $pluralModelLabel = 'Danh mục';
+    protected static ?string $navigationLabel = 'Danh mục (Phân loại)';
+    protected static ?string $modelLabel = 'Danh mục (Nội bộ)';
+    protected static ?string $pluralModelLabel = 'Danh mục (Nội bộ)';
 
 
     public static function form(Form $form): Form
@@ -45,9 +45,6 @@ class CategoryResource extends Resource
                     ->directory('categories'),
                 Forms\Components\Textarea::make('description')
                     ->columnSpanFull(),
-                Forms\Components\Toggle::make('is_active')
-                    ->label('Active on Frontend')
-                    ->default(true),
             ]);
     }
 
@@ -66,8 +63,6 @@ class CategoryResource extends Resource
                     ->label('Total Products')
                     ->badge()
                     ->color('success'),
-                Tables\Columns\ToggleColumn::make('is_active')
-                    ->label('Status'),
                 Tables\Columns\TextColumn::make('slug')
                     ->searchable()
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -79,19 +74,39 @@ class CategoryResource extends Resource
             ->defaultGroup('parent.name')
             ->reorderable('sort_order')
             ->filters([
-                Tables\Filters\TernaryFilter::make('is_active')
-                    ->label('Status')
-                    ->boolean(),
                 Tables\Filters\SelectFilter::make('parent_id')
                     ->label('Parent Category')
                     ->relationship('parent', 'name')
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
+                Tables\Actions\DeleteAction::make()
+                    ->before(function ($record, Tables\Actions\DeleteAction $action) {
+                        if ($record->products()->count() > 0) {
+                            \Filament\Notifications\Notification::make()
+                                ->danger()
+                                ->title('Không thể xóa danh mục này vì vẫn còn ' . $record->products()->count() . ' sản phẩm bên trong. Vui lòng chuyển sản phẩm sang danh mục khác trước.')
+                                ->send();
+
+                            $action->cancel();
+                        }
+                    }),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->before(function (\Illuminate\Database\Eloquent\Collection $records, Tables\Actions\DeleteBulkAction $action) {
+                            foreach ($records as $record) {
+                                if ($record->products()->count() > 0) {
+                                    \Filament\Notifications\Notification::make()
+                                        ->danger()
+                                        ->title("Không thể xóa danh mục '{$record->name}' vì vẫn còn " . $record->products()->count() . " sản phẩm bên trong. Vui lòng chuyển sản phẩm sang danh mục khác trước.")
+                                        ->send();
+
+                                    $action->cancel();
+                                }
+                            }
+                        }),
                 ]),
             ]);
     }

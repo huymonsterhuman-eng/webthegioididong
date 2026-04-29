@@ -15,7 +15,7 @@ use Illuminate\Database\Eloquent\Builder;
 class ShippingProviderResource extends Resource
 {
     use HasResourcePermission;
-    protected static string $requiredPermission = 'manage_shipping_providers';
+    protected static string $requiredPermission = 'manage_shipping';
     protected static ?string $model = Partner::class;
 
     protected static ?string $navigationGroup = '🏭 Kho & Vận chuyển (Logistics)';

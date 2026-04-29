@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Traits\HasResourcePermission;
 use App\Filament\Resources\PartnerResource\Pages;
 use App\Models\Partner;
 use Filament\Forms;
@@ -12,6 +13,8 @@ use Filament\Tables\Table;
 
 class PartnerResource extends Resource
 {
+    use HasResourcePermission;
+    protected static string $requiredPermission = 'view_partners';
     protected static ?string $model = Partner::class;
 
     protected static ?string $navigationGroup = '🏭 Kho & Vận chuyển (Logistics)';
@@ -21,7 +24,7 @@ class PartnerResource extends Resource
     protected static ?string $modelLabel = 'Đối tác';
     protected static ?string $pluralModelLabel = 'Đối tác';
 
-    protected static bool $shouldRegisterNavigation = false;
+    protected static bool $shouldRegisterNavigation = true;
 
     public static function form(Form $form): Form
     {

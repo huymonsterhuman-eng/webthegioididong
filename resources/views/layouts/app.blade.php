@@ -69,10 +69,67 @@
     <header class="tgdd-yellow text-black sticky top-0 z-50 shadow-md">
         <div class="container mx-auto px-4 lg:px-8 h-16 flex items-center justify-between">
             <!-- Logo & Mobile Menu -->
-            <div class="flex items-center gap-4">
-                <button class="lg:hidden text-2xl pr-2">
+            <div class="flex items-center gap-4" x-data="{ mobileMenuOpen: false }">
+                <button @click="mobileMenuOpen = true" class="lg:hidden text-2xl pr-2">
                     <i class="fa-solid fa-bars"></i>
                 </button>
+                
+                <!-- Mobile Slide-out Menu -->
+                <div x-show="mobileMenuOpen" class="fixed inset-0 z-[100] lg:hidden" style="display: none;">
+                    <div x-show="mobileMenuOpen" @click="mobileMenuOpen = false" x-transition.opacity class="fixed inset-0 bg-black/50"></div>
+                    <div x-show="mobileMenuOpen" 
+                         x-transition:enter="transition ease-out duration-300 transform" 
+                         x-transition:enter-start="-translate-x-full" 
+                         x-transition:enter-end="translate-x-0" 
+                         x-transition:leave="transition ease-in duration-300 transform" 
+                         x-transition:leave-start="translate-x-0" 
+                         x-transition:leave-end="-translate-x-full" 
+                         class="fixed inset-y-0 left-0 w-80 max-w-[80vw] bg-white text-gray-800 shadow-2xl flex flex-col h-full z-10 overflow-y-auto">
+                         
+                        <div class="p-4 border-b flex justify-between items-center bg-brand-yellow">
+                            <span class="font-bold text-lg">Danh mục sản phẩm</span>
+                            <button @click="mobileMenuOpen = false" class="text-xl px-2">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+                        
+                        <div class="py-2">
+                            @php
+                                $mobileCollections = \App\Models\Collection::where('is_active', true)
+                                    ->whereNull('parent_id')
+                                    ->with(['children' => function($q) {
+                                        $q->where('is_active', true)->orderBy('sort_order');
+                                    }])
+                                    ->orderBy('sort_order')
+                                    ->get();
+                            @endphp
+                            
+                            @foreach($mobileCollections as $col)
+                                <div class="border-b border-gray-100" x-data="{ open: false }">
+                                    <div class="flex items-center justify-between px-4 py-3">
+                                        <a href="/bo-suu-tap/{{ $col->slug }}" class="font-medium hover:text-brand-blue flex-grow">{{ $col->name }}</a>
+                                        @if($col->children->count() > 0)
+                                            <button @click="open = !open" class="p-2 text-gray-500 hover:text-brand-blue">
+                                                <i class="fa-solid fa-chevron-down text-sm transition-transform duration-200" :class="{'rotate-180': open}"></i>
+                                            </button>
+                                        @endif
+                                    </div>
+                                    @if($col->children->count() > 0)
+                                        <div x-show="open" x-collapse style="display: none;" class="bg-gray-50 px-6 py-2 pb-4">
+                                            <div class="flex flex-col space-y-3">
+                                                @foreach($col->children as $child)
+                                                    <a href="/bo-suu-tap/{{ $child->slug }}" class="text-sm text-gray-600 hover:text-brand-blue block">
+                                                        {{ $child->name }}
+                                                    </a>
+                                                @endforeach
+                                            </div>
+                                        </div>
+                                    @endif
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
                 <a href="/"
                     class="flex-shrink-0 inline-flex items-center justify-center hover:scale-105 transition-transform duration-300 bg-[#ffcc00] text-black font-bold px-2 py-1 rounded"
                     style="font-family: Arial, sans-serif; font-size: 40px; line-height: 1;">
@@ -108,10 +165,16 @@
                             <span>{{ Auth::user()->username }}</span>
                         </div>
                         <div class="absolute right-0 top-full pt-2 hidden group-hover:block w-48 z-50">
-                            <div class="bg-white rounded shadow-lg border text-gray-800 overflow-hidden text-sm">
-                                <a href="{{ route('my-orders.index') }}" class="block px-4 py-2 hover:bg-gray-100">Đơn hàng
-                                    của tôi</a>
-                                <a href="{{ route('my-vouchers.index') }}" class="block px-4 py-2 hover:bg-gray-100">Kho Voucher</a>
+                            <div class="bg-white rounded shadow-lg border text-gray-800 overflow-hidden text-sm w-full">
+                                <a href="{{ route('account.index') }}" class="block px-4 py-2.5 hover:bg-gray-50 hover:text-brand-blue font-medium border-b flex items-center gap-2">
+                                    <i class="fa-regular fa-circle-user w-4"></i> Tài khoản của tôi
+                                </a>
+                                <a href="{{ route('account.orders.index') }}" class="block px-4 py-2 hover:bg-gray-50 flex items-center gap-2">
+                                    <i class="fa-solid fa-clipboard-list w-4"></i> Đơn mua
+                                </a>
+                                <a href="{{ route('account.vouchers.index') }}" class="block px-4 py-2 hover:bg-gray-50 flex items-center gap-2">
+                                    <i class="fa-solid fa-ticket w-4"></i> Kho Voucher
+                                </a>
                                 <form method="POST" action="{{ route('logout') }}">
                                     @csrf
                                     <button type="submit"
@@ -143,36 +206,43 @@
         <div class="bg-brand-dark text-white hidden lg:block" x-data="{ hoverCat: null }">
             <div class="container mx-auto px-8 flex items-center gap-8 text-sm font-medium h-10 relative">
                 @php
-                    $navCategories = \App\Models\Category::whereNull('parent_id')->where('is_active', true)->with([
-                        'children' => function ($q) {
+                    $navCollections = \App\Models\Collection::where('is_active', true)
+                        ->whereNull('parent_id')
+                        ->with(['children' => function($q) {
                             $q->where('is_active', true)->orderBy('sort_order');
-                        }
-                    ])->orderBy('sort_order')->take(8)->get();
+                        }])
+                        ->orderBy('sort_order')
+                        ->take(8)
+                        ->get();
                 @endphp
-                @foreach($navCategories as $cat)
-                    <div class="h-full flex items-center relative" @mouseenter="hoverCat = {{ $cat->id }}"
-                        @mouseleave="hoverCat = null">
-
-                        <a href="/categories/{{ $cat->slug }}"
-                            class="hover:text-brand-yellow transition flex items-center gap-1">
-                            {{ $cat->name }}
-                            @if($cat->children->count() > 0)
-                                <i class="fa-solid fa-chevron-down text-[10px] opacity-70"></i>
+                @foreach($navCollections as $col)
+                    <div class="h-full flex items-center relative group" @mouseenter="hoverCat = {{ $col->id }}" @mouseleave="hoverCat = null">
+                        <a href="/bo-suu-tap/{{ $col->slug }}"
+                            class="hover:text-brand-yellow transition flex items-center gap-1 py-2 cursor-pointer relative z-20">
+                            {{ $col->name }}
+                            @if($col->children->count() > 0)
+                                <i class="fa-solid fa-sort-down text-[10px] mb-1 opacity-70"></i>
                             @endif
                         </a>
-
-                        @if($cat->children->count() > 0)
-                            <div x-show="hoverCat === {{ $cat->id }}" style="display: none;" x-transition.opacity.duration.150ms
-                                class="absolute top-full left-0 bg-white shadow-xl border rounded-b-lg min-w-[200px] py-2 z-50 text-gray-800">
-                                @foreach($cat->children as $child)
-                                    <a href="/categories/{{ $child->slug }}"
-                                        class="block px-4 py-2 hover:bg-gray-50 hover:text-brand-blue transition whitespace-nowrap">
-                                        {{ $child->name }}
-                                    </a>
-                                @endforeach
+                        
+                        @if($col->children->count() > 0)
+                            <!-- Hover Dropdown -->
+                            <div x-show="hoverCat === {{ $col->id }}"
+                                 x-transition.opacity.duration.200ms
+                                 class="absolute top-10 left-0 bg-white text-gray-800 shadow-xl rounded-b px-6 py-4 z-50 min-w-[200px] border-t-2 border-brand-yellow {{ $col->children->count() > 6 ? 'w-[400px]' : '' }}"
+                                 style="display: none;"
+                                 @mouseenter="hoverCat = {{ $col->id }}"
+                                 @mouseleave="hoverCat = null">
+                                 
+                                <div class="{{ $col->children->count() > 6 ? 'grid grid-cols-2 gap-x-6 gap-y-3' : 'flex flex-col space-y-3' }}">
+                                    @foreach($col->children as $child)
+                                        <a href="/bo-suu-tap/{{ $child->slug }}" class="hover:text-brand-blue py-1 transition flex items-center text-[13px]">
+                                            {{ $child->name }}
+                                        </a>
+                                    @endforeach
+                                </div>
                             </div>
                         @endif
-
                     </div>
                 @endforeach
             </div>
@@ -231,6 +301,52 @@
             Alpine.data('cartStore', () => ({
                 openCart: false,
                 items: JSON.parse(localStorage.getItem('cart') || '[]'),
+                stockWarning: '',
+
+                init() {
+                    this.$watch('openCart', value => {
+                        if (value === true && this.items.length > 0) {
+                            this.fetchLatestStock();
+                        }
+                    });
+                },
+
+                async fetchLatestStock() {
+                    try {
+                        let ids = this.items.map(i => i.id);
+                        let response = await fetch('/cart/stock-check', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                            },
+                            body: JSON.stringify({ product_ids: ids })
+                        });
+                        let data = await response.json();
+                        if (data.success) {
+                            let changed = false;
+                            let changedNames = [];
+                            this.items = this.items.map(item => {
+                                if (data.stocks[item.id] !== undefined) {
+                                    item.stock = data.stocks[item.id];
+                                    if (item.quantity > item.stock) {
+                                        item.quantity = Math.max(0, item.stock);
+                                        changed = true;
+                                        changedNames.push(item.name);
+                                    }
+                                }
+                                return item;
+                            }).filter(item => item.quantity > 0);
+                            
+                            if (changed) {
+                                this.showWarning("Số lượng sản phẩm " + changedNames.join(', ') + " trong giỏ hàng đã được cập nhật do thay đổi tồn kho.");
+                            }
+                            this.saveCart();
+                        }
+                    } catch (e) {
+                        console.error("Lỗi cập nhật tồn kho", e);
+                    }
+                },
 
                 get itemCount() {
                     return this.items.reduce((total, item) => total + item.quantity, 0);
@@ -243,8 +359,18 @@
                 addToCart(product) {
                     let existing = this.items.find(i => i.id === product.id);
                     if (existing) {
+                        if (existing.quantity + 1 > product.stock) {
+                            this.showWarning("Rất tiếc chúng tôi chỉ còn " + product.stock + " sản phẩm");
+                            this.openCart = true;
+                            return;
+                        }
                         existing.quantity++;
+                        existing.stock = product.stock;
                     } else {
+                        if (product.stock < 1) {
+                            this.showWarning("Sản phẩm đã hết hàng");
+                            return;
+                        }
                         this.items.push({ ...product, quantity: 1 });
                     }
                     this.saveCart();
@@ -254,7 +380,14 @@
                 updateQuantity(id, delta) {
                     let index = this.items.findIndex(i => i.id === id);
                     if (index !== -1) {
-                        this.items[index].quantity += delta;
+                        let newQty = this.items[index].quantity + delta;
+                        if (newQty > this.items[index].stock && delta > 0) {
+                            this.items[index].quantity = this.items[index].stock;
+                            this.showWarning("Rất tiếc chúng tôi chỉ còn " + this.items[index].stock + " sản phẩm");
+                        } else {
+                            this.items[index].quantity = newQty;
+                        }
+                        
                         if (this.items[index].quantity <= 0) {
                             this.items.splice(index, 1);
                         }
@@ -262,18 +395,41 @@
                     this.saveCart();
                 },
 
+                validateQuantity(id) {
+                    let index = this.items.findIndex(i => i.id === id);
+                    if (index !== -1) {
+                        let qty = parseInt(this.items[index].quantity);
+                        if (isNaN(qty) || qty < 1) {
+                            qty = 1;
+                        }
+                        if (qty > this.items[index].stock) {
+                            qty = this.items[index].stock;
+                            this.showWarning("Rất tiếc chúng tôi chỉ còn " + this.items[index].stock + " sản phẩm");
+                        }
+                        this.items[index].quantity = qty;
+                    }
+                    this.saveCart();
+                },
+
+                showWarning(msg) {
+                    this.stockWarning = msg;
+                    setTimeout(() => { this.stockWarning = ''; }, 5000);
+                },
+
                 formatMoney(amount) {
                     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
                 },
 
                 saveCart() {
-                    // Save to localstorage for now (Phase 3 spec mentions Alpine AJAX cart)
                     localStorage.setItem('cart', JSON.stringify(this.items));
                 },
 
                 checkout() {
-                    if (this.items.length === 0) return alert('Giỏ hàng trống!');
-                    window.location.href = '/checkout';
+                    // Update stock before checkout page redirect just in case
+                    this.fetchLatestStock().then(() => {
+                        if (this.items.length === 0) return alert('Giỏ hàng trống!');
+                        window.location.href = '/checkout';
+                    });
                 }
             }))
         })

@@ -12,10 +12,12 @@ class Voucher extends Model
 
     protected $fillable = [
         'code',
+        'name',
         'type',
         'discount_amount',
         'min_order_value',
         'max_discount',
+        'started_at',
         'expires_at',
         'usage_limit',
         'used_count',
@@ -25,9 +27,10 @@ class Voucher extends Model
     protected $casts = [
         'discount_amount' => 'decimal:2',
         'min_order_value' => 'decimal:2',
-        'max_discount' => 'decimal:2',
-        'expires_at' => 'datetime',
-        'is_active' => 'boolean',
+        'max_discount'    => 'decimal:2',
+        'started_at'      => 'datetime',
+        'expires_at'      => 'datetime',
+        'is_active'       => 'boolean',
     ];
 
     /**
@@ -83,6 +86,8 @@ class Voucher extends Model
      */
     public function users(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
     {
-        return $this->belongsToMany(User::class, 'user_voucher')->withPivot('is_used')->withTimestamps();
+        return $this->belongsToMany(User::class, 'user_voucher')
+            ->withPivot('is_used', 'used_at', 'order_id')
+            ->withTimestamps();
     }
 }

@@ -11,8 +11,10 @@ class OrderDetail extends Model
     protected $fillable = [
         'order_id',
         'product_id',
+        'product_name',
+        'product_image',
         'quantity',
-        'price_at_purchase'
+        'price_at_purchase',
     ];
 
     protected $casts = [

@@ -17,7 +17,7 @@ use Illuminate\Database\Eloquent\SoftDeletingScope;
 class BrandResource extends Resource
 {
     use HasResourcePermission;
-    protected static string $requiredPermission = 'manage_brands';
+    protected static string $requiredPermission = 'view_brands';
     protected static ?string $model = Brand::class;
 
     protected static ?string $navigationGroup = '📦 Sản phẩm (Catalog)';
@@ -59,10 +59,33 @@ class BrandResource extends Resource
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
+                Tables\Actions\DeleteAction::make()
+                    ->before(function ($record, Tables\Actions\DeleteAction $action) {
+                        if ($record->products()->count() > 0) {
+                            \Filament\Notifications\Notification::make()
+                                ->danger()
+                                ->title('Không thể xóa danh mục này vì vẫn còn ' . $record->products()->count() . ' sản phẩm bên trong. Vui lòng chuyển sản phẩm sang danh mục khác trước.')
+                                ->send();
+
+                            $action->cancel();
+                        }
+                    }),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->before(function (\Illuminate\Database\Eloquent\Collection $records, Tables\Actions\DeleteBulkAction $action) {
+                            foreach ($records as $record) {
+                                if ($record->products()->count() > 0) {
+                                    \Filament\Notifications\Notification::make()
+                                        ->danger()
+                                        ->title("Không thể xóa danh mục '{$record->name}' vì vẫn còn " . $record->products()->count() . " sản phẩm bên trong. Vui lòng chuyển sản phẩm sang danh mục khác trước.")
+                                        ->send();
+
+                                    $action->cancel();
+                                }
+                            }
+                        }),
                 ]),
             ]);
     }

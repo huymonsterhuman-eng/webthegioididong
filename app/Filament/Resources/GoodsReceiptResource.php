@@ -19,7 +19,7 @@ use Filament\Tables\Table;
 class GoodsReceiptResource extends Resource
 {
     use HasResourcePermission;
-    protected static string $requiredPermission = 'view_inventory';
+    protected static string $requiredPermission = 'manage_goods_receipt';
     protected static ?string $model = GoodsReceipt::class;
 
     protected static ?string $navigationGroup = '🏭 Kho & Vận chuyển (Logistics)';

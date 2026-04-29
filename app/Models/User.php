@@ -25,7 +25,11 @@ class User extends Authenticatable implements FilamentUser, HasName
         'username',
         'email',
         'password',
-        'role',
+        'full_name',
+        'phone',
+        'avatar',
+        'gender',
+        'birthday',
         'status',
     ];
 
@@ -79,11 +83,18 @@ class User extends Authenticatable implements FilamentUser, HasName
      */
     public function vouchers(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
     {
-        return $this->belongsToMany(Voucher::class, 'user_voucher')->withPivot('is_used')->withTimestamps();
+        return $this->belongsToMany(Voucher::class, 'user_voucher')
+            ->withPivot('is_used', 'used_at', 'order_id')
+            ->withTimestamps();
     }
 
     public function reviews()
     {
         return $this->hasMany(Review::class);
+    }
+
+    public function addresses(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Address::class);
     }
 }

@@ -14,7 +14,7 @@ class Review extends Model
         'product_id',
         'rating',
         'comment',
-        'image',
+        'images',
         'is_hidden',
         'admin_reply',
     ];
@@ -22,6 +22,7 @@ class Review extends Model
     protected $casts = [
         'rating' => 'integer',
         'is_hidden' => 'boolean',
+        'images' => 'array',
     ];
 
     public function user()

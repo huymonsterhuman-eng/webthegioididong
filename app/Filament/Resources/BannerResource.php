@@ -58,6 +58,16 @@ class BannerResource extends Resource
                         Forms\Components\Toggle::make('is_active')
                             ->label('Active')
                             ->default(true),
+
+                        Forms\Components\Select::make('author_id')
+                            ->label('Creator')
+                            ->relationship('author', 'username')
+                            ->getOptionLabelFromRecordUsing(fn ($record) => ($record->full_name && $record->full_name !== '') ? $record->full_name . " ({$record->username})" : $record->username)
+                            ->default(auth()->id())
+                            ->disabled()
+                            ->dehydrated()
+                            ->searchable()
+                            ->preload(),
                     ])->columns(2),
             ]);
     }
@@ -72,6 +82,14 @@ class BannerResource extends Resource
                     ->size(80),
 
                 Tables\Columns\TextColumn::make('title')
+                    ->searchable()
+                    ->sortable(),
+
+                Tables\Columns\TextColumn::make('author.username')
+                    ->label('Creator')
+                    ->description(fn (Banner $record): ?string => $record->author?->full_name)
+                    ->badge()
+                    ->color('info')
                     ->searchable()
                     ->sortable(),
 

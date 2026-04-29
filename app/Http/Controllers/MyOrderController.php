@@ -10,7 +10,7 @@ class MyOrderController extends Controller
     public function index()
     {
         $orders = auth()->user()->orders()->with('orderDetails.product')->latest()->paginate(10);
-        return view('my-orders.index', compact('orders'));
+        return view('account.orders.index', compact('orders'));
     }
 
     public function show(Order $order)
@@ -20,7 +20,7 @@ class MyOrderController extends Controller
         }
 
         $order->load('orderDetails.product');
-        return view('my-orders.show', compact('order'));
+        return view('account.orders.show', compact('order'));
     }
 
     public function cancel(Order $order, Request $request)

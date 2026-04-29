@@ -11,28 +11,31 @@ class HomeController extends Controller
 {
     public function index()
     {
-        // Get parent categories for the homepage blocks
-        $categories = Category::whereNull('parent_id')
-            ->orderBy('id')->get();
+        // Get collections for the homepage blocks
+        $collections = \App\Models\Collection::where('is_active', true)
+            ->orderBy('sort_order')->get();
 
         // Load some flash sale or hot products (dummy logic: highest views or something)
-        $hotProducts = Product::with(['category', 'brand'])
+        $hotProducts = Product::with(['category', 'brand', 'primaryImage'])
             ->orderBy('views', 'desc')
             ->take(10)
             ->get();
 
-        // Fetch a few products per category to display
-        $categoryProducts = [];
-        foreach ($categories as $cat) {
-            $categoryProducts[$cat->id] = Product::with(['category', 'brand'])
-                ->where('category_id', $cat->id)
+        // Fetch a few products per collection to display
+        $collectionProducts = [];
+        foreach ($collections as $col) {
+            /** @var \App\Models\Collection $col */
+            $collectionProducts[$col->id] = $col->products()->with(['category', 'brand', 'primaryImage'])
                 ->inRandomOrder()
                 ->take(10)
                 ->get();
         }
 
-        // Load some posts
-        $posts = Post::orderBy('date', 'desc')->take(3)->get();
+        // Load some published posts
+        $posts = Post::where('is_published', true)
+            ->orderBy('published_at', 'desc')
+            ->take(3)
+            ->get();
 
         // Load active vouchers
         $vouchers = \App\Models\Voucher::where('is_active', true)
@@ -49,6 +52,6 @@ class HomeController extends Controller
             ->orderBy('sort_order', 'asc')
             ->get();
 
-        return view('home', compact('categories', 'hotProducts', 'categoryProducts', 'posts', 'vouchers', 'heroBanners'));
+        return view('home', compact('collections', 'hotProducts', 'collectionProducts', 'posts', 'vouchers', 'heroBanners'));
     }
 }

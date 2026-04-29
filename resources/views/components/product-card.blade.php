@@ -5,11 +5,16 @@
     <!-- Image -->
     <a href="{{ route('product.show', ['categorySlug' => $product->category ? $product->category->slug : 'san-pham', 'productSlug' => $product->slug]) }}"
         class="block relative overflow-hidden h-48 mb-4 group-hover:-translate-y-1 transition-transform">
-
         @php
-            $imgSrc = empty($product->image)
+            if ($product->primaryImage) {
+                $imagePath = $product->primaryImage->path;
+            } else {
+                $imagePath = $product->image;
+            }
+            
+            $imgSrc = empty($imagePath)
                 ? asset('storage/img/placeholder.jpg')
-                : (Str::startsWith($product->image, 'http') ? $product->image : Storage::url($product->image));
+                : (Str::startsWith($imagePath, 'http') ? $imagePath : Storage::url($imagePath));
         @endphp
         <img src="{{ $imgSrc }}" alt="{{ $product->name }}" class="object-contain w-full h-full {{ $product->stock <= 0 ? 'opacity-40 grayscale' : '' }}" loading="lazy">
 
@@ -77,7 +82,8 @@
                     id: {{ $product->id }},
                     name: '{{ addslashes($product->name) }}',
                     price: {{ $product->sale_price && $product->sale_price < $product->price ? $product->sale_price : $product->price }},
-                    image: '{{ $product->image ? Storage::url($product->image) : Storage::url("img/placeholder.jpg") }}'
+                    image: '{{ $imgSrc }}',
+                    stock: {{ $product->stock }}
                 })"
                 class="w-full py-2 border border-brand-blue text-brand-blue rounded hover:bg-brand-blue hover:text-white transition font-medium text-sm mt-auto">
                 Thêm vào giỏ

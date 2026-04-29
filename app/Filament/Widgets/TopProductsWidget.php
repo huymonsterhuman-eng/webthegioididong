@@ -13,7 +13,7 @@ class TopProductsWidget extends BaseWidget
 {
     public static function canView(): bool
     {
-        return auth()->user()->can('view_dashboard') || auth()->user()->hasRole('super-admin');
+        return auth()->user()->can('view_reports') || auth()->user()->hasRole('super-admin');
     }
 
     protected static ?int $sort = 3;

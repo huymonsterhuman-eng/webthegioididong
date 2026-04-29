@@ -41,11 +41,24 @@ class PostResource extends Resource
                     ->required()
                     ->maxLength(255)
                     ->unique(ignoreRecord: true),
-                Forms\Components\TextInput::make('category')
+                Forms\Components\Select::make('post_category_id')
+                    ->relationship('postCategory', 'name')
+                    ->getOptionLabelFromRecordUsing(fn ($record) => $record->name ?? 'Unnamed Category')
                     ->required()
-                    ->maxLength(255),
-                Forms\Components\DatePicker::make('date')
-                    ->required(),
+                    ->searchable()
+                    ->preload(),
+                Forms\Components\Select::make('author_id')
+                    ->relationship('author', 'username')
+                    ->getOptionLabelFromRecordUsing(fn ($record) => ($record->full_name && $record->full_name !== '') ? $record->full_name . " ({$record->username})" : $record->username)
+                    ->default(auth()->id())
+                    ->searchable()
+                    ->preload(),
+                Forms\Components\Toggle::make('is_published')
+                    ->label('Công khai bài viết')
+                    ->default(false),
+                Forms\Components\DateTimePicker::make('published_at')
+                    ->label('Ngày đăng bài')
+                    ->default(now()),
                 Forms\Components\FileUpload::make('image')
                     ->image()
                     ->disk('public')
@@ -75,11 +88,28 @@ class PostResource extends Resource
                     ->defaultImageUrl(url('storage/img/placeholder.jpg')),
                 Tables\Columns\TextColumn::make('title')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('category')
+                Tables\Columns\TextColumn::make('postCategory.name')
+                    ->label('Danh mục')
                     ->searchable()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('date')
-                    ->date()
+                Tables\Columns\TextColumn::make('author.username')
+                    ->label('Tác giả')
+                    ->description(fn (Post $record): ?string => $record->author?->full_name)
+                    ->badge()
+                    ->color('info')
+                    ->searchable()
+                    ->sortable(),
+                Tables\Columns\IconColumn::make('is_published')
+                    ->label('Công khai')
+                    ->boolean()
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('published_at')
+                    ->label('Ngày đăng')
+                    ->dateTime()
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('views')
+                    ->label('Lượt xem')
+                    ->numeric()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()

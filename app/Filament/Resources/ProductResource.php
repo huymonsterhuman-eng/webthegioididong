@@ -63,7 +63,9 @@ class ProductResource extends Resource
                     ->columnSpanFull(),
                 Forms\Components\TextInput::make('screen')->maxLength(255),
                 Forms\Components\TextInput::make('chip')->maxLength(255),
-                Forms\Components\TextInput::make('cameraorsensors')->maxLength(255),
+                Forms\Components\TextInput::make('camera')->label('Camera/Cảm biến')->maxLength(255),
+                Forms\Components\TextInput::make('sku')->label('SKU (Mã hàng)')->maxLength(100)->unique(ignoreRecord: true),
+                Forms\Components\TextInput::make('weight')->label('Trọng lượng (gram)')->numeric(),
                 Forms\Components\TextInput::make('battery')->maxLength(255),
                 Forms\Components\TextInput::make('os')->maxLength(255),
                 Forms\Components\TextInput::make('stock')
@@ -79,9 +81,15 @@ class ProductResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn (Builder $query) => $query->with('primaryImage'))
             ->columns([
                 Tables\Columns\ImageColumn::make('image')
+                    ->label('Hình ảnh')
                     ->disk('public')
+                    ->getStateUsing(function ($record) {
+                        $image = $record->primaryImage ? $record->primaryImage->path : $record->image;
+                        return $image ?: null;
+                    })
                     ->defaultImageUrl(url('storage/img/placeholder.jpg'))
                     ->square()
                     ->width(60)

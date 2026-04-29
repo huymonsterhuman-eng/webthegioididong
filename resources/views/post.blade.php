@@ -20,7 +20,7 @@
                 <div class="flex items-center gap-3 text-sm text-gray-500 mb-4 font-medium uppercase tracking-wider">
                     <span class="bg-brand-blue text-white px-3 py-1 rounded-full">{{ $post->category ?? 'Tin tức' }}</span>
                     <span><i class="fa-regular fa-clock bg-gray-50 text-gray-400 p-1 rounded-full mr-1"></i>
-                        {{ \Carbon\Carbon::parse($post->date)->format('d/m/Y - H:i') }}</span>
+                        {{ optional($post->published_at)->format('d/m/Y - H:i') ?? 'Chưa đăng' }}</span>
                 </div>
                 <h1 class="text-3xl md:text-4xl font-extrabold text-gray-900 leading-tight mb-6">
                     {{ $post->title }}
