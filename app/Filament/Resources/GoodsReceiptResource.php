@@ -35,6 +35,7 @@ class GoodsReceiptResource extends Resource
         return $form
             ->schema([
                 Forms\Components\Section::make('Receipt Information')
+                    ->disabled(fn ($record) => $record && $record->status !== 'pending')
                     ->schema([
                         Forms\Components\Select::make('supplier_id')
                             ->label('Supplier (Nhà cung cấp)')
@@ -52,6 +53,7 @@ class GoodsReceiptResource extends Resource
                     ])->columns(2),
 
                 Forms\Components\Section::make('Products (Sản phẩm nhập)')
+                    ->disabled(fn ($record) => $record && $record->status !== 'pending')
                     ->schema([
                         Forms\Components\Repeater::make('details')
                             ->label('')
@@ -60,7 +62,8 @@ class GoodsReceiptResource extends Resource
                                 Forms\Components\Select::make('product_id')
                                     ->label('Product')
                                     ->options(
-                                        Product::orderBy('stock', 'asc')
+                                        Product::active()
+                                            ->orderBy('stock', 'asc')
                                             ->get()
                                             ->mapWithKeys(fn($p) => [
                                                 $p->id => "[Tồn: {$p->stock}] {$p->name}"
@@ -122,10 +125,10 @@ class GoodsReceiptResource extends Resource
                     ->label('Receipt #')
                     ->formatStateUsing(fn($state) => 'PR-' . str_pad($state, 4, '0', STR_PAD_LEFT))
                     ->sortable(),
-                Tables\Columns\TextColumn::make('supplier.name')
-                    ->label('Supplier')
+                Tables\Columns\TextColumn::make('supplier_name')
+                    ->label('Nhà cung cấp')
                     ->searchable()
-                    ->sortable(),
+                    ->default(fn ($record) => $record->supplier?->name),
                 Tables\Columns\TextColumn::make('user.username')
                     ->label('Created By')
                     ->sortable(),
@@ -136,6 +139,21 @@ class GoodsReceiptResource extends Resource
                 Tables\Columns\TextColumn::make('details_count')
                     ->label('Items')
                     ->counts('details'),
+                Tables\Columns\TextColumn::make('status')
+                    ->label('Trạng thái')
+                    ->badge()
+                    ->color(fn ($state) => match ($state) {
+                        'pending'   => 'warning',
+                        'completed' => 'success',
+                        'cancelled' => 'danger',
+                        default     => 'gray',
+                    })
+                    ->formatStateUsing(fn ($state) => match ($state) {
+                        'pending'   => 'Chờ xác nhận',
+                        'completed' => 'Hoàn thành',
+                        'cancelled' => 'Đã huỷ',
+                        default     => $state,
+                    }),
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Date')
                     ->dateTime('d/m/Y H:i')
@@ -147,7 +165,48 @@ class GoodsReceiptResource extends Resource
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
+                Tables\Actions\EditAction::make()
+                    ->visible(fn ($record) => $record->isPending()),
+
+                // Xác nhận nhập kho trực tiếp từ danh sách
+                Tables\Actions\Action::make('confirm_receipt')
+                    ->label('Xác nhận')
+                    ->icon('heroicon-o-check-circle')
+                    ->color('success')
+                    ->requiresConfirmation()
+                    ->modalHeading('Xác nhận nhập kho?')
+                    ->modalDescription('Hành động này sẽ cộng số lượng vào tồn kho và không thể hoàn tác.')
+                    ->visible(fn ($record) => $record->isPending())
+                    ->action(function ($record) {
+                        foreach ($record->details as $detail) {
+                            $detail->product?->increment('stock', $detail->quantity);
+                            $detail->update(['remaining_quantity' => $detail->quantity]);
+                        }
+                        $record->update(['status' => 'completed']);
+                        \App\Services\ActivityLogService::log(
+                            'confirm_goods_receipt',
+                            "Đã xác nhận nhập kho phiếu #{$record->id}.",
+                            'inventory', $record,
+                            ['total_amount' => $record->total_amount]
+                        );
+                        \Filament\Notifications\Notification::make()
+                            ->success()->title('Nhập kho thành công')->send();
+                    }),
+
+                // Huỷ phiếu nhập trực tiếp từ danh sách
+                Tables\Actions\Action::make('cancel_receipt')
+                    ->label('Huỷ')
+                    ->icon('heroicon-o-x-circle')
+                    ->color('danger')
+                    ->requiresConfirmation()
+                    ->modalHeading('Huỷ phiếu nhập?')
+                    ->modalDescription('Phiếu sẽ bị huỷ. Tồn kho không thay đổi.')
+                    ->visible(fn ($record) => $record->isPending())
+                    ->action(function ($record) {
+                        $record->update(['status' => 'cancelled']);
+                        \Filament\Notifications\Notification::make()
+                            ->warning()->title('Đã huỷ phiếu nhập')->send();
+                    }),
             ])
             ->bulkActions([]);
     }

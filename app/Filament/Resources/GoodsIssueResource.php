@@ -49,7 +49,7 @@ class GoodsIssueResource extends Resource
                                 ->label('Sản phẩm')
                                 ->live() // Added to trigger reactivity
                                 ->searchable()
-                                ->getSearchResultsUsing(fn (string $search): array => \App\Models\Product::where('name', 'like', "%{$search}%")->limit(50)->pluck('name', 'id')->toArray())
+                                ->getSearchResultsUsing(fn (string $search): array => \App\Models\Product::active()->where('name', 'like', "%{$search}%")->limit(50)->pluck('name', 'id')->toArray())
                                 ->getOptionLabelUsing(fn ($value): ?string => \App\Models\Product::find($value)?->name)
                                 ->required()
                                 ->disableOptionsWhenSelectedInSiblingRepeaterItems(),
@@ -122,14 +122,16 @@ class GoodsIssueResource extends Resource
                     ->label('Trạng thái')
                     ->badge()
                     ->color(fn ($state): string => match ($state) {
+                        'pending'   => 'warning',
                         'completed' => 'success',
                         'cancelled' => 'danger',
-                        default => 'gray',
+                        default     => 'gray',
                     })
                     ->formatStateUsing(fn ($state) => match ($state) {
+                        'pending'   => 'Chờ duyệt',
                         'completed' => 'Hoàn thành',
                         'cancelled' => 'Đã hủy',
-                        default => $state,
+                        default     => $state,
                     })
                     ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
@@ -140,7 +142,68 @@ class GoodsIssueResource extends Resource
             ->defaultSort('created_at', 'desc')
             ->filters([])
             ->actions([
-                Tables\Actions\ViewAction::make()->label('Chi tiết xuất kho'),
+                Tables\Actions\ViewAction::make()->label('Chi tiết'),
+
+                // Duyệt phiếu xuất thủ công trực tiếp từ danh sách
+                Tables\Actions\Action::make('approve_issue')
+                    ->label('Duyệt')
+                    ->icon('heroicon-o-check-circle')
+                    ->color('success')
+                    ->requiresConfirmation()
+                    ->modalHeading('Duyệt phiếu xuất kho?')
+                    ->modalDescription('Hành động này sẽ trừ tồn kho theo FIFO và không thể hoàn tác.')
+                    ->visible(fn ($record) => $record->type === 'manual' && $record->isPending())
+                    ->action(function ($record) {
+                        // Kiểm tra available_stock trước khi duyệt
+                        // (tránh duyệt lấy hết stock cần cho đơn hàng pending khác)
+                        $stubs = $record->details()->whereNull('goods_receipt_detail_id')->get();
+                        foreach ($stubs as $stub) {
+                            $product = \App\Models\Product::find($stub->product_id);
+                            if (!$product) continue;
+                            if ($product->available_stock < $stub->quantity) {
+                                \Filament\Notifications\Notification::make()
+                                    ->danger()
+                                    ->title('Không đủ stock khả dụng')
+                                    ->body("Sản phẩm \"{$product->name}\" chỉ còn {$product->available_stock} cái khả dụng (đã trừ đơn hàng đang chờ), cần {$stub->quantity} cái.")
+                                    ->send();
+                                return;
+                            }
+                        }
+
+                        $inventoryService = new \App\Services\InventoryService();
+                        try {
+                            \Illuminate\Support\Facades\DB::transaction(function () use ($record, $inventoryService) {
+                                foreach ($record->details->whereNull('goods_receipt_detail_id') as $stub) {
+                                    $inventoryService->reduceStock($stub->product_id, $stub->quantity, $record);
+                                }
+                                $record->details()->whereNull('goods_receipt_detail_id')->delete();
+                                $totalCogs = $record->details()->sum('total_price');
+                                $record->update(['status' => 'completed', 'total_cogs' => $totalCogs]);
+                            });
+                            \App\Services\ActivityLogService::log('approve_manual_issue', "Đã duyệt phiếu xuất #{$record->id}", 'inventory', $record, []);
+                            \Filament\Notifications\Notification::make()
+                                ->success()->title('Đã duyệt — tồn kho đã được trừ')->send();
+                        } catch (\Exception $e) {
+                            \Filament\Notifications\Notification::make()
+                                ->danger()->title('Lỗi: ' . $e->getMessage())->send();
+                        }
+                    }),
+
+                // Từ chối phiếu xuất thủ công
+                Tables\Actions\Action::make('reject_issue')
+                    ->label('Từ chối')
+                    ->icon('heroicon-o-x-circle')
+                    ->color('danger')
+                    ->requiresConfirmation()
+                    ->modalHeading('Từ chối phiếu xuất?')
+                    ->modalDescription('Phiếu sẽ bị huỷ. Tồn kho không thay đổi.')
+                    ->visible(fn ($record) => $record->type === 'manual' && $record->isPending())
+                    ->action(function ($record) {
+                        $record->update(['status' => 'cancelled']);
+                        \Filament\Notifications\Notification::make()
+                            ->warning()->title('Đã từ chối phiếu xuất')->send();
+                    }),
+
                 Tables\Actions\Action::make('fix_missing_details')
                     ->label('Sửa lỗi chi tiết')
                     ->icon('heroicon-o-wrench-screwdriver')

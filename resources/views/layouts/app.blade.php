@@ -295,6 +295,21 @@
     <!-- Cart Flyout (Slide Over) -->
     @include('components.cart-flyout')
 
+    <!-- Add-to-cart Success Toast -->
+    <div x-cloak
+         x-show="successMsg"
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 translate-y-4"
+         x-transition:enter-end="opacity-100 translate-y-0"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100 translate-y-0"
+         x-transition:leave-end="opacity-0 translate-y-4"
+         class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-2 bg-green-600 text-white text-sm font-medium px-5 py-3 rounded-full shadow-lg"
+         style="display:none;">
+        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+        <span x-text="successMsg"></span>
+    </div>
+
     <!-- Alpine.js Global State -->
     <script>
         document.addEventListener('alpine:init', () => {
@@ -302,6 +317,7 @@
                 openCart: false,
                 items: JSON.parse(localStorage.getItem('cart') || '[]'),
                 stockWarning: '',
+                successMsg: '',
 
                 init() {
                     this.$watch('openCart', value => {
@@ -326,9 +342,21 @@
                         if (data.success) {
                             let changed = false;
                             let changedNames = [];
+                            const inactiveIds = data.inactive_ids || [];
+                            // Xóa sản phẩm ngừng kinh doanh khỏi giỏ
+                            const removedInactive = this.items.filter(item => inactiveIds.includes(item.id));
+                            if (removedInactive.length > 0) {
+                                removedInactive.forEach(item => changedNames.push(item.name));
+                                changed = true;
+                            }
+                            this.items = this.items.filter(item => !inactiveIds.includes(item.id));
                             this.items = this.items.map(item => {
                                 if (data.stocks[item.id] !== undefined) {
-                                    item.stock = data.stocks[item.id];
+                                    // Dùng available_stock (đã trừ pending orders) để giới hạn cart
+                                    const availableStock = (data.available && data.available[item.id] !== undefined)
+                                        ? data.available[item.id]
+                                        : data.stocks[item.id];
+                                    item.stock = availableStock;
                                     if (item.quantity > item.stock) {
                                         item.quantity = Math.max(0, item.stock);
                                         changed = true;
@@ -374,7 +402,7 @@
                         this.items.push({ ...product, quantity: 1 });
                     }
                     this.saveCart();
-                    this.openCart = true;
+                    this.showSuccess('Đã thêm vào giỏ hàng!');
                 },
 
                 updateQuantity(id, delta) {
@@ -414,6 +442,11 @@
                 showWarning(msg) {
                     this.stockWarning = msg;
                     setTimeout(() => { this.stockWarning = ''; }, 5000);
+                },
+
+                showSuccess(msg) {
+                    this.successMsg = msg;
+                    setTimeout(() => { this.successMsg = ''; }, 3000);
                 },
 
                 formatMoney(amount) {

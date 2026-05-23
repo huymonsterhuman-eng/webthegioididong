@@ -1,6 +1,18 @@
 @extends('layouts.app')
 
 @section('content')
+    {{-- Flash error message --}}
+    @if(session('error'))
+        <div class="max-w-5xl mx-auto px-4 pt-4">
+            <div class="bg-red-50 border border-red-300 text-red-800 rounded-lg px-4 py-3 text-sm font-medium flex items-center gap-2">
+                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                {{ session('error') }}
+            </div>
+        </div>
+    @endif
+
     <div class="container mx-auto px-4 lg:px-8 py-8" x-data="{
             localItems: JSON.parse(localStorage.getItem('cart') || '[]'),
             get subtotal() { return this.localItems.reduce((t, i) => t + (i.price * i.quantity), 0); },

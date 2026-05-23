@@ -26,6 +26,7 @@ class Product extends Model
         'stock',
         'weight',
         'is_featured',
+        'is_active',
         'views',
     ];
 
@@ -33,7 +34,35 @@ class Product extends Model
         'price'       => 'decimal:2',
         'sale_price'  => 'decimal:2',
         'is_featured' => 'boolean',
+        'is_active'   => 'boolean',
     ];
+
+    /**
+     * Scope: chỉ lấy sản phẩm đang kinh doanh (is_active = true)
+     */
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
+    }
+
+    /**
+     * Stock khả dụng = stock - đang bị giữ bởi đơn hàng pending/confirmed
+     *                        - đang bị giữ bởi phiếu xuất thủ công pending
+     * Dùng để validate khi tạo đơn hàng hoặc phiếu xuất mới.
+     */
+    public function getAvailableStockAttribute(): int
+    {
+        $pendingOrderQty = OrderDetail::where('product_id', $this->id)
+            ->whereHas('order', fn ($q) => $q->whereIn('status', ['pending', 'confirmed']))
+            ->sum('quantity');
+
+        $pendingIssueQty = GoodsIssueDetail::where('product_id', $this->id)
+            ->whereNull('goods_receipt_detail_id') // stub pending records
+            ->whereHas('goodsIssue', fn ($q) => $q->where('status', 'pending'))
+            ->sum('quantity');
+
+        return max(0, $this->stock - (int) $pendingOrderQty - (int) $pendingIssueQty);
+    }
 
     public function category(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
@@ -68,6 +97,16 @@ class Product extends Model
     public function reviews()
     {
         return $this->hasMany(Review::class);
+    }
+
+    public function goodsReceiptDetails(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(GoodsReceiptDetail::class);
+    }
+
+    public function goodsIssueDetails(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(GoodsIssueDetail::class);
     }
 
     public function averageRating()

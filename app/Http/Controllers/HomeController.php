@@ -16,7 +16,7 @@ class HomeController extends Controller
             ->orderBy('sort_order')->get();
 
         // Load some flash sale or hot products (dummy logic: highest views or something)
-        $hotProducts = Product::with(['category', 'brand', 'primaryImage'])
+        $hotProducts = Product::active()->with(['category', 'brand', 'primaryImage'])
             ->orderBy('views', 'desc')
             ->take(10)
             ->get();
@@ -25,7 +25,7 @@ class HomeController extends Controller
         $collectionProducts = [];
         foreach ($collections as $col) {
             /** @var \App\Models\Collection $col */
-            $collectionProducts[$col->id] = $col->products()->with(['category', 'brand', 'primaryImage'])
+            $collectionProducts[$col->id] = $col->products()->active()->with(['category', 'brand', 'primaryImage'])
                 ->inRandomOrder()
                 ->take(10)
                 ->get();

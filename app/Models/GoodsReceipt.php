@@ -11,10 +11,16 @@ class GoodsReceipt extends Model
 
     protected $fillable = [
         'supplier_id',
+        'supplier_name',    // snapshot — không thay đổi khi partner bị sửa tên
         'user_id',
         'total_amount',
         'note',
+        'status',
     ];
+
+    public function isPending(): bool   { return $this->status === 'pending'; }
+    public function isCompleted(): bool { return $this->status === 'completed'; }
+    public function isCancelled(): bool { return $this->status === 'cancelled'; }
 
     protected $casts = [
         'total_amount' => 'decimal:2',

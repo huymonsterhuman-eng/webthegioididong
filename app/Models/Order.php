@@ -24,6 +24,7 @@ class Order extends Model
         'shipping_method',
         'shipping_fee',
         'partner_id',
+        'shipping_provider_name',  // snapshot — không thay đổi khi partner bị sửa tên
         'tracking_number',
         'voucher_id',
         'discount_amount',
@@ -131,6 +132,10 @@ class Order extends Model
                     }
                 }
 
+                // Nếu đơn đã shipping (có GoodsIssue), hoàn lại remaining_quantity.
+                // Observer sẽ tự cộng stock khi remaining_quantity tăng — KHÔNG tự increment stock ở đây
+                // để tránh double increment.
+                // Nếu đơn chỉ pending/confirmed (chưa shipping), stock chưa bao giờ bị trừ → không cần restore.
                 $goodsIssue = GoodsIssue::where('order_id', $this->id)->where('status', 'completed')->first();
                 if ($goodsIssue) {
                     $goodsIssue->update(['status' => 'cancelled']);
@@ -138,6 +143,7 @@ class Order extends Model
                         $receiptDetail = GoodsReceiptDetail::find($detail->goods_receipt_detail_id);
                         if ($receiptDetail) {
                             $receiptDetail->increment('remaining_quantity', $detail->quantity);
+                            // Observer.updated() sẽ tự gọi Product.increment('stock', diff)
                         }
                     }
                 }
@@ -161,7 +167,6 @@ class Order extends Model
                         'status' => 'completed',
                     ]);
 
-                    $totalCogs = 0;
                     $allBatches = [];
                     $inventoryService = new \App\Services\InventoryService();
 
@@ -172,24 +177,30 @@ class Order extends Model
                                 $orderDetail->quantity,
                                 $goodsIssue
                             );
-                            $totalCogs += $result['cogs'];
                             $allBatches = array_merge($allBatches, $result['batches']);
                         }
+
+                        // Tính total_cogs trực tiếp từ DB sau khi tất cả details đã được lưu
+                        // (tránh lỗi closure-reference với DB::transaction)
+                        $totalCogs = $goodsIssue->details()->sum('total_price');
                         $goodsIssue->update(['total_cogs' => $totalCogs]);
-                        
+
                         \App\Services\ActivityLogService::log(
                             'auto_goods_issue',
                             "Hệ thống tự động tạo phiếu xuất kho #{$goodsIssue->id} cho Đơn hàng #{$this->id}.",
                             'inventory',
                             $goodsIssue,
                             [
-                                'order_id' => $this->id, 
+                                'order_id' => $this->id,
                                 'total_cogs' => $totalCogs,
                                 'detailed_batches' => $allBatches
                             ]
                         );
                     } catch (\Exception $e) {
-                        \Illuminate\Support\Facades\Log::error("Goods Issue Auto-creation Failed: " . $e->getMessage());
+                        // Xóa phiếu xuất rỗng nếu reduceStock thất bại (tránh orphan record)
+                        $goodsIssue->details()->delete();
+                        $goodsIssue->delete();
+                        \Illuminate\Support\Facades\Log::error("Goods Issue Auto-creation Failed for Order #{$this->id}: " . $e->getMessage());
                     }
                 }
             }

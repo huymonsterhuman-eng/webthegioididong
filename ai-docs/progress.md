@@ -20,7 +20,7 @@ Tài liệu này theo dõi tiến độ chung của dự án TheGioiDiDong Clone
 **Hệ thống Đơn hàng**
 - Quản lý đơn hàng đầy đủ (CRUD, trạng thái, tracking)
 - Order Lifecycle tự động: pending → confirmed → shipping → delivered / cancelled
-- Hủy đơn hàng phía user (MyOrderController) với hoàn kho tự động
+- Hủy đơn hàng (user frontend + admin Filament) — toàn bộ side effects tập trung tại `Order::handleStatusChange()`: hoàn voucher, hoàn `product.stock`, hoàn FIFO inventory
 - PDF Invoice: Xuất hóa đơn từ Admin Panel
 
 **Hệ thống Voucher**
@@ -66,4 +66,3 @@ Tài liệu này theo dõi tiến độ chung của dự án TheGioiDiDong Clone
 - **Payment Gateway:** Hoàn thiện luồng VNPay/MoMo — test đầy đủ edge cases (timeout, refund, webhook bảo mật).
 - **Email Notifications:** Gửi email xác nhận đơn hàng, cập nhật trạng thái giao hàng (field `email_verified_at` đã có nhưng luồng notification chưa triển khai).
 - **Mobile UX:** Cải thiện responsive cho màn hình nhỏ, tối ưu Header và Menu.
-- **Refactor Order Cancellation:** Logic hủy đơn hiện tồn tại ở 2 nơi (`Order::handleStatusChange()` và `MyOrderController`) — cần hợp nhất về 1 điểm để tránh inconsistency.

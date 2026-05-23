@@ -283,8 +283,7 @@ class OrderResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('order_code')
                     ->label('Order Code')
-                    ->searchable()
-                    ->sortable(),
+                    ->sortable(false),
                 Tables\Columns\TextColumn::make('user.username')
                     ->label('Customer')
                     ->searchable()
@@ -320,8 +319,9 @@ class OrderResource extends Resource
                     ->badge()
                     ->color(fn (string $state): string => $state === 'express' ? 'success' : 'gray')
                     ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('partner.name')
-                    ->label('Provider')
+                Tables\Columns\TextColumn::make('shipping_provider_name')
+                    ->label('Đơn vị vận chuyển')
+                    ->default(fn ($record) => $record->partner?->name)
                     ->toggleable(),
             ])
             ->filters([
@@ -385,10 +385,12 @@ class OrderResource extends Resource
                         ])
                         ->visible(fn (Order $record): bool => in_array($record->status, ['pending', 'confirmed']))
                         ->action(function (Order $record, array $data): void {
+                            $partner = \App\Models\Partner::find($data['partner_id']);
                             $record->update([
-                                'status' => 'shipping',
-                                'partner_id' => $data['partner_id'],
-                                'tracking_number' => $data['tracking_number'],
+                                'status'                  => 'shipping',
+                                'partner_id'              => $data['partner_id'],
+                                'shipping_provider_name'  => $partner?->name, // snapshot
+                                'tracking_number'         => $data['tracking_number'],
                             ]);
 
                             Notification::make()
@@ -502,7 +504,8 @@ class OrderResource extends Resource
                                     Infolists\Components\TextEntry::make('shipping_address')
                                         ->label('Địa chỉ giao hàng')
                                         ->columnSpanFull(),
-                                    Infolists\Components\TextEntry::make('partner.name')
+                                    Infolists\Components\TextEntry::make('shipping_provider_name')
+                                        ->default(fn ($record) => $record->partner?->name)
                                         ->label('Đơn vị vận chuyển'),
                                     Infolists\Components\TextEntry::make('tracking_number')
                                         ->label('Mã vận đơn')

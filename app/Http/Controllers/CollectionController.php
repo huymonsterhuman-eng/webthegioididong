@@ -17,7 +17,7 @@ class CollectionController extends Controller
             $collectionIds = array_merge($collectionIds, $collection->children->pluck('id')->toArray());
         }
 
-        $query = \App\Models\Product::with(['brand', 'primaryImage'])->whereHas('collections', function ($q) use ($collectionIds) {
+        $query = \App\Models\Product::active()->with(['brand', 'primaryImage'])->whereHas('collections', function ($q) use ($collectionIds) {
             $q->whereIn('collections.id', $collectionIds);
         });
 

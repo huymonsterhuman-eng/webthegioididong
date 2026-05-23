@@ -18,6 +18,10 @@ class GoodsIssue extends Model
         'status',
     ];
 
+    public function isPending(): bool   { return $this->status === 'pending'; }
+    public function isCompleted(): bool { return $this->status === 'completed'; }
+    public function isCancelled(): bool { return $this->status === 'cancelled'; }
+
     public function author()
     {
         return $this->belongsTo(User::class, 'author_id');

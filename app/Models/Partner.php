@@ -22,8 +22,13 @@ class Partner extends Model
         'is_active' => 'boolean',
     ];
 
-    public function orders()
+    public function orders(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(Order::class);
+    }
+
+    public function goodsReceipts(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(GoodsReceipt::class, 'supplier_id');
     }
 }

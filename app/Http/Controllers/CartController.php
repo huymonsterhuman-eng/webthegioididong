@@ -74,7 +74,7 @@ class CartController extends Controller
         
         $total += $shippingFee;
 
-        // Check for Voucher
+        // Check for Voucher (chỉ tính discount, chưa increment — sẽ increment sau khi order tạo xong)
         $voucher = null;
         $discountAmount = 0;
         if (!empty($validated['voucher_code'])) {
@@ -84,38 +84,34 @@ class CartController extends Controller
                 if ($check['valid']) {
                     $discountAmount = $voucher->calculateDiscount($total);
                     $total -= $discountAmount;
-                    if ($total < 0) {
-                        $total = 0;
-                    }
-                    $voucher->increment('used_count'); // Increment used count
-                    
-                    // Mark voucher as used for the user
-                    $user = auth()->user();
-                    if ($user) {
-                        $userVoucher = $user->vouchers()->where('voucher_id', $voucher->id)->first();
-                        if ($userVoucher) {
-                            $user->vouchers()->updateExistingPivot($voucher->id, ['is_used' => true]);
-                        } else {
-                            $user->vouchers()->attach($voucher->id, ['is_used' => true]);
-                        }
-                    }
+                    if ($total < 0) $total = 0;
                 } else {
-                    $voucher = null; // Don't apply if invalid
+                    $voucher = null;
                 }
             }
         }
 
-        // Validate stock availability before placing order
+        // Validate stock availability và active status trước khi đặt hàng
+        // Dùng available_stock = stock - committed_by_pending_orders/issues
         foreach ($cartItems as $item) {
             $product = \App\Models\Product::find($item['id']);
-            if (!$product || $product->stock < $item['quantity']) {
-                $name = $product ? $product->name : 'Sản phẩm không xác định';
-                return back()->with('error', "Sản phẩm \"{$name}\" không đủ hàng trong kho. Vui lòng kiểm tra lại giỏ hàng.");
+            if (!$product) {
+                return back()->with('error', 'Một sản phẩm trong giỏ hàng không tồn tại. Vui lòng kiểm tra lại.');
+            }
+            if (!$product->is_active) {
+                return back()->with('error', "Sản phẩm \"{$product->name}\" đã ngừng kinh doanh. Vui lòng xóa khỏi giỏ hàng.");
+            }
+            if ($product->available_stock < $item['quantity']) {
+                return back()->with('error', "Sản phẩm \"{$product->name}\" không đủ hàng khả dụng (còn {$product->available_stock} cái). Vui lòng kiểm tra lại.");
             }
         }
 
-        // Create the Order
-        $order = \App\Models\Order::create([
+        // Bọc toàn bộ tạo order trong transaction — tránh orphaned orders
+        $order = \Illuminate\Support\Facades\DB::transaction(function () use (
+            $cartItems, $subtotal, $total, $shippingName, $shippingAddress, $shippingPhone,
+            $shippingMethod, $shippingFee, $voucher, $discountAmount, $validated
+        ) {
+            $order = \App\Models\Order::create([
             'user_id'          => auth()->id(),
             'subtotal'         => $subtotal,
             'total'            => $total,
@@ -131,22 +127,37 @@ class CartController extends Controller
             'discount_amount'  => $discountAmount > 0 ? $discountAmount : null,
         ]);
 
-        // Create Order Details (with product snapshot for history integrity)
-        foreach ($cartItems as $item) {
-            $product = \App\Models\Product::find($item['id']);
-            \App\Models\OrderDetail::create([
-                'order_id'         => $order->id,
-                'product_id'       => $item['id'],
-                'product_name'     => $product ? $product->name : ($item['name'] ?? 'Sản phẩm không rõ'),
-                'product_image'    => $product ? $product->image : null,
-                'quantity'         => $item['quantity'],
-                'price_at_purchase'=> $item['price'],
-            ]);
+            // Create Order Details (with product snapshot for history integrity)
+            foreach ($cartItems as $item) {
+                $product = \App\Models\Product::find($item['id']);
+                \App\Models\OrderDetail::create([
+                    'order_id'          => $order->id,
+                    'product_id'        => $item['id'],
+                    'product_name'      => $product ? $product->name : ($item['name'] ?? 'Sản phẩm không rõ'),
+                    'product_image'     => $product ? $product->image : null,
+                    'quantity'          => $item['quantity'],
+                    'price_at_purchase' => $item['price'],
+                ]);
+                // Stock KHÔNG trừ ở đây — trừ khi đơn chuyển sang "shipping" qua FIFO.
+            }
 
-            // Decrement product stock
-            \App\Models\Product::where('id', $item['id'])
-                ->decrement('stock', $item['quantity']);
-        }
+            // Increment voucher used_count sau khi order + details đã tạo xong
+            if ($voucher) {
+                $voucher->increment('used_count');
+            }
+
+            // Mark voucher as used with order reference
+            if ($voucher && auth()->check()) {
+                $user = auth()->user();
+                $pivotData = ['is_used' => true, 'used_at' => now(), 'order_id' => $order->id];
+                $alreadyAttached = $user->vouchers()->where('voucher_id', $voucher->id)->exists();
+                $alreadyAttached
+                    ? $user->vouchers()->updateExistingPivot($voucher->id, $pivotData)
+                    : $user->vouchers()->attach($voucher->id, $pivotData);
+            }
+
+            return $order;
+        }); // end DB::transaction
 
         // For momo/vnpay, construct the payment URL and redirect
         if ($validated['payment_method'] === 'vnpay') {
@@ -232,12 +243,17 @@ class CartController extends Controller
             'product_ids.*' => 'integer'
         ]);
 
-        $stocks = \App\Models\Product::whereIn('id', $request->product_ids)
-            ->pluck('stock', 'id');
+        $products = \App\Models\Product::whereIn('id', $request->product_ids)->get();
+
+        $stocks         = $products->pluck('stock', 'id');
+        $availableStocks = $products->mapWithKeys(fn ($p) => [$p->id => $p->available_stock]);
+        $inactiveIds    = $products->where('is_active', false)->pluck('id')->values();
 
         return response()->json([
-            'success' => true,
-            'stocks' => $stocks
+            'success'      => true,
+            'stocks'       => $stocks,          // raw stock (tham khảo)
+            'available'    => $availableStocks, // stock khả dụng (đã trừ pending orders/issues)
+            'inactive_ids' => $inactiveIds,
         ]);
     }
 }

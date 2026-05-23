@@ -11,7 +11,7 @@ class ProductController extends Controller
     {
         $query = $request->input('q');
 
-        $products = Product::with(['category', 'brand', 'primaryImage'])
+        $products = Product::active()->with(['category', 'brand', 'primaryImage'])
             ->where(function ($q) use ($query) {
                 $q->where('name', 'like', "%{$query}%")
                     ->orWhere('description', 'like', "%{$query}%");
@@ -24,12 +24,12 @@ class ProductController extends Controller
 
     public function show($categorySlug, $productSlug)
     {
-        $product = Product::with(['category', 'brand', 'primaryImage'])->where('slug', $productSlug)->firstOrFail();
+        $product = Product::active()->with(['category', 'brand', 'primaryImage'])->where('slug', $productSlug)->firstOrFail();
 
         // Increase views
         $product->increment('views');
 
-        $relatedProducts = Product::with(['category', 'brand', 'primaryImage'])
+        $relatedProducts = Product::active()->with(['category', 'brand', 'primaryImage'])
             ->where('category_id', $product->category_id)
             ->where('id', '!=', $product->id)
             ->inRandomOrder()

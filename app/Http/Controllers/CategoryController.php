@@ -16,7 +16,7 @@ class CategoryController extends Controller
         $categoryIds = [$category->id];
         $categoryIds = array_merge($categoryIds, $category->children()->where('is_active', true)->pluck('id')->toArray());
 
-        $query = Product::with('brand')->whereIn('category_id', $categoryIds);
+        $query = Product::active()->with('brand')->whereIn('category_id', $categoryIds);
 
         if ($request->has('brand')) {
             $brand = Brand::where('slug', $request->brand)->first();

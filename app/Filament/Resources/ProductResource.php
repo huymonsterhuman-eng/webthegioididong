@@ -75,6 +75,10 @@ class ProductResource extends Resource
                     ->disabled()
                     ->dehydrated(false)
                     ->helperText('⚠️ Tồn kho chỉ thay đổi qua Phiếu Nhập (Goods Receipts) hoặc khi khách mua hàng.'),
+                Forms\Components\Toggle::make('is_active')
+                    ->label('Kinh doanh (bật = đang bán, tắt = ngừng kinh doanh)')
+                    ->default(true)
+                    ->helperText('Tắt sẽ ẩn sản phẩm khỏi giao diện người dùng và form tạo phiếu nhập/xuất mới.'),
             ]);
     }
 
@@ -108,9 +112,20 @@ class ProductResource extends Resource
                 Tables\Columns\TextColumn::make('stock')
                     ->numeric()
                     ->sortable(),
+                Tables\Columns\IconColumn::make('is_active')
+                    ->label('Trạng thái')
+                    ->boolean()
+                    ->trueIcon('heroicon-o-check-circle')
+                    ->falseIcon('heroicon-o-x-circle')
+                    ->trueColor('success')
+                    ->falseColor('danger'),
             ])
             ->filters([
                 Tables\Filters\TrashedFilter::make(),
+                Tables\Filters\TernaryFilter::make('is_active')
+                    ->label('Trạng thái kinh doanh')
+                    ->trueLabel('Kinh doanh')
+                    ->falseLabel('Ngừng kinh doanh'),
                 Tables\Filters\SelectFilter::make('brand')
                     ->relationship('brand', 'name')
                     ->label('Brand')
@@ -180,12 +195,72 @@ class ProductResource extends Resource
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\DeleteAction::make()
+                    ->before(function (Tables\Actions\DeleteAction $action, \App\Models\Product $record) {
+                        if ($record->stock > 0) {
+                            \Filament\Notifications\Notification::make()
+                                ->danger()
+                                ->title('Không thể xóa — Còn tồn kho')
+                                ->body("Sản phẩm \"{$record->name}\" còn {$record->stock} đơn vị trong kho. Hãy xuất hết hoặc đặt Ngừng kinh doanh thay vì xóa.")
+                                ->send();
+                            $action->cancel();
+                            return;
+                        }
+                        if ($record->orderDetails()->exists()) {
+                            \Filament\Notifications\Notification::make()
+                                ->danger()
+                                ->title('Không thể xóa — Có trong đơn hàng')
+                                ->body("Sản phẩm \"{$record->name}\" đã có trong lịch sử đơn hàng. Hãy đặt trạng thái Ngừng kinh doanh thay vì xóa.")
+                                ->send();
+                            $action->cancel();
+                            return;
+                        }
+                        if ($record->goodsReceiptDetails()->exists()) {
+                            \Filament\Notifications\Notification::make()
+                                ->danger()
+                                ->title('Không thể xóa — Có trong phiếu nhập kho')
+                                ->body("Sản phẩm \"{$record->name}\" đã xuất hiện trong lịch sử phiếu nhập kho.")
+                                ->send();
+                            $action->cancel();
+                            return;
+                        }
+                        if ($record->goodsIssueDetails()->exists()) {
+                            \Filament\Notifications\Notification::make()
+                                ->danger()
+                                ->title('Không thể xóa — Có trong phiếu xuất kho')
+                                ->body("Sản phẩm \"{$record->name}\" đã xuất hiện trong lịch sử phiếu xuất kho.")
+                                ->send();
+                            $action->cancel();
+                            return;
+                        }
+                        if ($record->reviews()->exists()) {
+                            \Filament\Notifications\Notification::make()
+                                ->warning()
+                                ->title('Lưu ý khi xóa')
+                                ->body("Sản phẩm có {$record->reviews()->count()} đánh giá — tất cả sẽ bị xóa theo.")
+                                ->send();
+                        }
+                    }),
                 Tables\Actions\RestoreAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->before(function (Tables\Actions\DeleteBulkAction $action, \Illuminate\Database\Eloquent\Collection $records) {
+                            $blockedStock   = $records->filter(fn ($p) => $p->stock > 0);
+                            $blockedOrders  = $records->filter(fn ($p) => $p->orderDetails()->exists());
+                            $blockedReceipt = $records->filter(fn ($p) => $p->goodsReceiptDetails()->exists());
+                            $blockedIssue   = $records->filter(fn ($p) => $p->goodsIssueDetails()->exists());
+                            $blocked = $blockedStock->merge($blockedOrders)->merge($blockedReceipt)->merge($blockedIssue)->unique('id');
+                            if ($blocked->isNotEmpty()) {
+                                \Filament\Notifications\Notification::make()
+                                    ->danger()
+                                    ->title("Không thể xóa {$blocked->count()} sản phẩm")
+                                    ->body('Còn tồn kho / có trong đơn hàng / phiếu kho: ' . $blocked->pluck('name')->join(', '))
+                                    ->send();
+                                $action->cancel();
+                            }
+                        }),
                     Tables\Actions\RestoreBulkAction::make(),
                 ]),
             ]);

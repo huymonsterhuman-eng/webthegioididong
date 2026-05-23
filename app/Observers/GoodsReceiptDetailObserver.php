@@ -33,7 +33,10 @@ class GoodsReceiptDetailObserver
      */
     public function created(GoodsReceiptDetail $detail): void
     {
-        if ($detail->product) {
+        // Chỉ cộng stock nếu phiếu nhập đã ở trạng thái completed
+        // (pending = chờ xác nhận, stock sẽ được cộng khi admin xác nhận)
+        $receipt = GoodsReceipt::find($detail->goods_receipt_id);
+        if ($receipt && $receipt->status === 'completed' && $detail->product) {
             $detail->product->increment('stock', $detail->quantity);
         }
         $this->updateReceiptTotal($detail->goods_receipt_id);
@@ -63,7 +66,10 @@ class GoodsReceiptDetailObserver
             $newQty = (int) $detail->quantity;
             $diff = $newQty - $oldQty;
 
-            if ($detail->product && $diff != 0) {
+            // Chỉ điều chỉnh stock khi phiếu nhập đã completed
+            // Khi pending, confirm_receipt action sẽ cộng đúng số lượng sau
+            $receipt = GoodsReceipt::find($detail->goods_receipt_id);
+            if ($detail->product && $diff != 0 && $receipt && $receipt->status === 'completed') {
                 $detail->product->increment('stock', $diff);
             }
 

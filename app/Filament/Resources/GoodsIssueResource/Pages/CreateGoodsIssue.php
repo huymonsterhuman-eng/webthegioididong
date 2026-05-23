@@ -16,10 +16,10 @@ class CreateGoodsIssue extends CreateRecord
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
-        $data['type'] = 'manual';
+        $data['type']      = 'manual';
         $data['author_id'] = auth()->id();
-        $data['status'] = 'completed';
-        $data['total_cogs'] = 0; 
+        $data['status']    = 'pending';   // Chờ duyệt — stock chưa bị trừ
+        $data['total_cogs'] = 0;
 
         return $data;
     }
@@ -34,42 +34,24 @@ class CreateGoodsIssue extends CreateRecord
         DB::transaction(function () use (&$record, $data, $details) {
             $record = static::getModel()::create($data);
 
-            $inventoryService = new InventoryService();
-            $totalCogs = 0;
-            $allBatches = [];
-
+            // Tạo stub details — chưa gán batch FIFO, chờ admin duyệt mới trừ stock
             foreach ($details as $item) {
-                try {
-                    $result = $inventoryService->reduceStock(
-                        $item['product_id'],
-                        $item['quantity'],
-                        $record
-                    );
-                    $totalCogs += $result['cogs'];
-                    $allBatches = array_merge($allBatches, $result['batches']);
-                } catch (Exception $e) {
-                    Notification::make()
-                        ->title('Lỗi xuất kho: ' . $e->getMessage())
-                        ->danger()
-                        ->send();
-                        
-                    // By throwing exception again, we rollback the entire transaction
-                    throw $e; 
-                }
+                \App\Models\GoodsIssueDetail::create([
+                    'goods_issue_id'          => $record->id,
+                    'goods_receipt_detail_id' => null,   // Sẽ gán khi duyệt
+                    'product_id'              => $item['product_id'],
+                    'quantity'                => $item['quantity'],
+                    'import_price'            => 0,
+                    'total_price'             => 0,
+                ]);
             }
-
-            $record->update(['total_cogs' => $totalCogs]);
 
             \App\Services\ActivityLogService::log(
                 'create_manual_issue',
-                "Đã tạo phiếu xuất kho thủ công #{$record->id} với " . count($details) . " loại sản phẩm.",
+                "Đã tạo phiếu xuất kho thủ công #{$record->id} với " . count($details) . " loại sản phẩm. Đang chờ duyệt.",
                 'inventory',
                 $record,
-                [
-                    'total_cogs' => $totalCogs, 
-                    'item_count' => count($details),
-                    'detailed_batches' => $allBatches
-                ]
+                ['item_count' => count($details)]
             );
         });
 

@@ -107,25 +107,30 @@ class CreateGoodsReceipt extends Page
         $total = collect($this->cart)->sum(fn($item) => (float)$item['quantity'] * (float)$item['import_price']);
 
         \Illuminate\Support\Facades\DB::transaction(function () use ($total) {
+            $supplier = Partner::find($this->supplier_id);
+
             $receipt = GoodsReceipt::create([
-                'supplier_id' => $this->supplier_id,
-                'user_id' => auth()->id(),
-                'total_amount' => $total,
-                'note' => $this->note,
+                'supplier_id'   => $this->supplier_id,
+                'supplier_name' => $supplier?->name, // snapshot — giữ nguyên dù supplier bị đổi tên
+                'user_id'       => auth()->id(),
+                'total_amount'  => $total,
+                'note'          => $this->note,
             ]);
 
             $detailedItems = [];
             foreach ($this->cart as $item) {
+                $productName = $item['product_name'] ?? Product::find($item['product_id'])?->name;
                 $detail = GoodsReceiptDetail::create([
                     'goods_receipt_id' => $receipt->id,
-                    'product_id' => $item['product_id'],
-                    'quantity' => $item['quantity'],
-                    'import_price' => $item['import_price'],
+                    'product_id'       => $item['product_id'],
+                    'product_name'     => $productName, // snapshot
+                    'quantity'         => $item['quantity'],
+                    'import_price'     => $item['import_price'],
                 ]);
 
                 $detailedItems[] = [
                     'product_id' => $item['product_id'],
-                    'product_name' => $item['product_name'] ?? Product::find($item['product_id'])->name,
+                    'product_name' => $productName,
                     'quantity' => $item['quantity'],
                     'import_price' => (float)$item['import_price'],
                     'receipt_detail_id' => $detail->id,
