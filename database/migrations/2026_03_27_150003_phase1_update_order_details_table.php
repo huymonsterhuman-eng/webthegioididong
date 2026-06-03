@@ -18,6 +18,7 @@ return new class extends Migration
         // Backfill existing records with product data
         \DB::table('order_details')
             ->whereNull('product_name')
+            ->orderBy('id')
             ->each(function ($detail) {
                 $product = \DB::table('products')->find($detail->product_id);
                 \DB::table('order_details')
