@@ -36,7 +36,8 @@ class OrdersRelationManager extends RelationManager
                 TextColumn::make('order_code')
                     ->label('Mã đơn hàng')
                     ->getStateUsing(fn (Order $record) => 'ORD-' . \Carbon\Carbon::parse($record->created_at)->format('Ymd') . '-' . str_pad($record->id, 3, '0', STR_PAD_LEFT))
-                    ->searchable(),
+                    // order_code là accessor, không có cột thật → search theo id
+                    ->searchable(query: fn ($query, string $search) => $query->where('id', 'like', "%{$search}%")),
                 TextColumn::make('total')
                     ->label('Tổng tiền')
                     ->money('VND')

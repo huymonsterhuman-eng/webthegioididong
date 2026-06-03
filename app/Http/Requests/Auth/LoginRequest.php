@@ -49,6 +49,19 @@ class LoginRequest extends FormRequest
             ]);
         }
 
+        // Chặn user bị khoá: đăng nhập đúng mật khẩu nhưng status = 'banned'
+        // → logout ngay lập tức và trả về lỗi.
+        $user = Auth::user();
+        if ($user && $user->status === 'banned') {
+            Auth::logout();
+            $this->session()->invalidate();
+            $this->session()->regenerateToken();
+
+            throw ValidationException::withMessages([
+                'email' => 'Tài khoản của bạn đã bị khoá. Vui lòng liên hệ admin để được hỗ trợ.',
+            ]);
+        }
+
         RateLimiter::clear($this->throttleKey());
     }
 

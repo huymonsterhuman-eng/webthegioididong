@@ -91,8 +91,7 @@ class GoodsIssueResource extends Resource
                     ->searchable(),
                 Tables\Columns\TextColumn::make('order.order_code')
                     ->label('Mã Đơn Hàng')
-                    ->sortable()
-                    ->searchable()
+                    // order_code là accessor — không sortable/searchable theo DB column
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('type')
                     ->label('Loại phiếu')

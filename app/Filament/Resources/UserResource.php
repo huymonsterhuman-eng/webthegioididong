@@ -86,13 +86,30 @@ class UserResource extends Resource
                                 'unverified' => 'Unverified',
                             ])
                             ->required()
-                            ->default('active'),
+                            ->default('active')
+                            // Không cho admin tự khoá chính mình
+                            ->disabled(fn ($record) => $record && $record->id === auth()->id())
+                            ->helperText(fn ($record) => $record && $record->id === auth()->id()
+                                ? '⚠️ Không thể tự đổi trạng thái tài khoản của chính mình.'
+                                : null)
+                            ->rules([
+                                fn ($record) => function (string $attr, $value, \Closure $fail) use ($record) {
+                                    // Double-check phía server: chặn API/Livewire payload bypass
+                                    if ($record && $record->id === auth()->id() && $value !== $record->status) {
+                                        $fail('Không thể tự đổi trạng thái tài khoản của chính mình.');
+                                    }
+                                },
+                            ]),
                         Select::make('roles')
                             ->relationship('roles', 'name')
                             ->multiple()
                             ->preload()
                             ->label('Vai trò (Roles)')
-                            ->helperText('Vai trò quyết định quyền hạn truy cập Admin.'),
+                            // Không cho admin tự đổi role của mình (tránh tự bỏ super-admin → mất quyền)
+                            ->disabled(fn ($record) => $record && $record->id === auth()->id())
+                            ->helperText(fn ($record) => $record && $record->id === auth()->id()
+                                ? '⚠️ Không thể tự đổi vai trò của chính mình. Vai trò quyết định quyền hạn truy cập Admin.'
+                                : 'Vai trò quyết định quyền hạn truy cập Admin.'),
                     ])->columns(2),
 
                 Section::make('Thông tin cá nhân')

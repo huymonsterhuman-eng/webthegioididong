@@ -2,13 +2,22 @@
 
 namespace App\Filament\Widgets;
 
+use App\Filament\Widgets\Concerns\ListensToDashboardFilter;
 use App\Models\Order;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
-use Illuminate\Support\Carbon;
 
+/**
+ * Widget thống kê đơn hàng — 4 KPI nhanh.
+ *
+ * "Đơn mới" và "Doanh thu" được filter theo range Dashboard.
+ * "Đang chờ xử lý" và "Đang giao" hiển thị realtime (không phụ thuộc range)
+ * vì admin cần biết tình trạng pipeline hiện tại.
+ */
 class OrderStatsWidget extends BaseWidget
 {
+    use ListensToDashboardFilter;
+
     public static function canView(): bool
     {
         return auth()->user()->can('view_reports') || auth()->user()->hasRole('super-admin');
@@ -16,26 +25,33 @@ class OrderStatsWidget extends BaseWidget
 
     protected function getStats(): array
     {
-        $today = Carbon::today();
-        
+        [$from, $to] = $this->dateRange();
+        $rangeLabel  = $from->format('d/m') . ' → ' . $to->format('d/m');
+
+        $newOrders = Order::whereBetween('created_at', [$from, $to])->count();
+        $revenue   = Order::whereBetween('created_at', [$from, $to])
+            ->where('status', '!=', 'cancelled')
+            ->sum('total');
+
         return [
-            Stat::make('Đơn mới hôm nay', Order::whereDate('created_at', $today)->count())
-                ->description('Tổng số đơn phát sinh hôm nay')
+            Stat::make('Đơn mới', $newOrders)
+                ->description("Trong khoảng {$rangeLabel}")
                 ->descriptionIcon('heroicon-m-shopping-cart')
                 ->color('info'),
-            
-            Stat::make('Doanh thu hôm nay', number_format(Order::whereDate('created_at', $today)->where('status', '!=', 'cancelled')->sum('total'), 0, ',', '.') . ' ₫')
-                ->description('Số tiền dự kiến (trừ đơn hủy)')
+
+            Stat::make('Doanh thu', number_format($revenue, 0, ',', '.') . ' ₫')
+                ->description('Đã trừ đơn huỷ')
                 ->descriptionIcon('heroicon-m-banknotes')
                 ->color('success'),
 
+            // Realtime — không filter theo range
             Stat::make('Đang chờ xử lý', Order::where('status', 'pending')->count())
-                ->description('Đơn hàng cần xác nhận')
+                ->description('Realtime — đơn cần xác nhận')
                 ->descriptionIcon('heroicon-m-clock')
                 ->color('warning'),
 
             Stat::make('Đang giao hàng', Order::where('status', 'shipping')->count())
-                ->description('Đơn đang trên đường giao')
+                ->description('Realtime — đơn trên đường giao')
                 ->descriptionIcon('heroicon-m-truck')
                 ->color('primary'),
         ];
