@@ -6,8 +6,13 @@ use Illuminate\Http\Request;
 use App\Models\Collection;
 use App\Models\Brand;
 
+/**
+ * Controller trang bộ sưu tập — liệt kê sản phẩm theo collection và các collection con.
+ * Tương tự CategoryController nhưng dùng quan hệ N:M (collection_product).
+ */
 class CollectionController extends Controller
 {
+    /** Trang danh sách sản phẩm trong 1 bộ sưu tập (kèm bộ sưu tập con) */
     public function show(Request $request, $slug)
     {
         $collection = Collection::with('children')->where('slug', $slug)->where('is_active', true)->firstOrFail();

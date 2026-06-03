@@ -5,10 +5,20 @@ namespace App\Observers;
 use App\Models\GoodsReceiptDetail;
 use App\Models\GoodsReceipt;
 
+/**
+ * Observer cho GoodsReceiptDetail — đồng bộ tự động cột `products.stock` và
+ * `goods_receipts.total_amount` mỗi khi detail thay đổi.
+ *
+ * Quan trọng:
+ *   - Stock chỉ được cộng/trừ khi receipt đã `completed`. Khi pending: chỉ lưu data,
+ *     stock sẽ được cộng một lần khi admin xác nhận phiếu.
+ *   - `remaining_quantity` thay đổi (do FIFO xuất kho hoặc hoàn kho) → tự cộng/trừ stock.
+ *   - Ngăn giảm quantity xuống dưới mức đã bán; ngăn xoá detail khi sẽ làm stock âm.
+ */
 class GoodsReceiptDetailObserver
 {
     /**
-     * Handle the GoodsReceiptDetail "updating" event.
+     * Trước khi cập nhật detail: chặn giảm quantity nếu sẽ làm stock < 0.
      */
     public function updating(GoodsReceiptDetail $detail): void
     {
@@ -29,7 +39,8 @@ class GoodsReceiptDetailObserver
     }
 
     /**
-     * Handle the GoodsReceiptDetail "created" event.
+     * Sau khi tạo detail: cộng stock NẾU phiếu nhập đã completed.
+     * Nếu phiếu vẫn pending, stock sẽ được cộng khi admin xác nhận.
      */
     public function created(GoodsReceiptDetail $detail): void
     {
@@ -57,7 +68,10 @@ class GoodsReceiptDetailObserver
     }
 
     /**
-     * Handle the GoodsReceiptDetail "updated" event.
+     * Sau khi update detail:
+     *   - Nếu quantity thay đổi & phiếu completed: điều chỉnh stock theo diff.
+     *   - Nếu remaining_quantity thay đổi (FIFO xuất kho hoặc hoàn kho): điều chỉnh stock.
+     *   - Luôn tính lại total_amount của phiếu nhập.
      */
     public function updated(GoodsReceiptDetail $detail): void
     {
@@ -117,7 +131,7 @@ class GoodsReceiptDetailObserver
     }
 
     /**
-     * Handle the GoodsReceiptDetail "deleting" event.
+     * Trước khi xoá detail: chặn nếu sẽ làm stock của sản phẩm xuống âm.
      */
     public function deleting(GoodsReceiptDetail $detail): void
     {
@@ -135,7 +149,7 @@ class GoodsReceiptDetailObserver
     }
 
     /**
-     * Handle the GoodsReceiptDetail "deleted" event.
+     * Sau khi xoá detail: giảm stock của sản phẩm tương ứng và cập nhật lại total của phiếu.
      */
     public function deleted(GoodsReceiptDetail $detail): void
     {
@@ -158,7 +172,7 @@ class GoodsReceiptDetailObserver
     }
 
     /**
-     * Helper to recalculate the parent GoodsReceipt total amount
+     * Tính lại total_amount của phiếu nhập = sum(quantity × import_price) của tất cả details.
      */
     protected function updateReceiptTotal($receiptId): void
     {

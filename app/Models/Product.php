@@ -4,6 +4,14 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * Sản phẩm bán trong cửa hàng.
+ *
+ * - Dùng SoftDeletes để giữ lịch sử (đơn hàng cũ vẫn tham chiếu được).
+ * - Trường `stock` chỉ được cập nhật qua FIFO Observer, KHÔNG sửa trực tiếp.
+ * - `is_active` = false → ngừng kinh doanh (ẩn khỏi frontend & form mới).
+ * - `is_featured` = true → hiển thị nổi bật trên trang chủ.
+ */
 class Product extends Model
 {
     use \Illuminate\Database\Eloquent\Factories\HasFactory, \Illuminate\Database\Eloquent\SoftDeletes;
@@ -64,51 +72,61 @@ class Product extends Model
         return max(0, $this->stock - (int) $pendingOrderQty - (int) $pendingIssueQty);
     }
 
+    /** Danh mục sản phẩm */
     public function category(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(Category::class);
     }
 
+    /** Thương hiệu sản phẩm */
     public function brand(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(Brand::class);
     }
 
+    /** Tất cả ảnh của sản phẩm (gallery, sắp xếp theo sort_order) */
     public function productImages(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(ProductImage::class)->orderBy('sort_order');
     }
 
+    /** Ảnh đại diện chính (is_primary = true) */
     public function primaryImage(): \Illuminate\Database\Eloquent\Relations\HasOne
     {
         return $this->hasOne(ProductImage::class)->where('is_primary', true);
     }
 
+    /** Chi tiết các đơn hàng đã mua sản phẩm này (lịch sử) */
     public function orderDetails(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(OrderDetail::class);
     }
 
+    /** Bộ sưu tập chứa sản phẩm (N:M) */
     public function collections(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
     {
         return $this->belongsToMany(Collection::class);
     }
 
+    /** Đánh giá từ khách hàng */
     public function reviews()
     {
         return $this->hasMany(Review::class);
     }
 
+    /** Các batch nhập kho có chứa sản phẩm này (FIFO tracking) */
     public function goodsReceiptDetails(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(GoodsReceiptDetail::class);
     }
 
+    /** Các batch xuất kho có chứa sản phẩm này (lịch sử xuất) */
     public function goodsIssueDetails(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(GoodsIssueDetail::class);
     }
 
+    /** Điểm đánh giá trung bình (loại bỏ review bị ẩn) */
     public function averageRating()
     {
         return $this->reviews()->where('is_hidden', false)->avg('rating') ?? 0;

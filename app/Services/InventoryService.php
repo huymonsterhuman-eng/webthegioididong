@@ -8,17 +8,26 @@ use App\Models\GoodsReceiptDetail;
 use Exceptions;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * Service quản lý kho theo FIFO (First-In-First-Out).
+ *
+ * Lấy hàng từ những batch (GoodsReceiptDetail) được nhập kho sớm nhất trước,
+ * tới khi đủ số lượng cần. Mỗi lần trừ kho sẽ ghi vào GoodsIssueDetail để
+ * theo dõi giá vốn (COGS) chính xác từng lô hàng.
+ */
 class InventoryService
 {
     /**
-     * Reduces the stock for a given product by drawing from Goods Receipts using FIFO.
-     * Records the deduction in GoodsIssueDetail.
+     * Trừ kho theo FIFO cho 1 sản phẩm và ghi nhận vào GoodsIssueDetail.
      *
-     * @param int $productId
-     * @param int $neededQuantity
-     * @param GoodsIssue $goodsIssue
-     * @return array The result containing ['cogs' => COGS, 'batches' => array of details].
-     * @throws \Exception if insufficient stock.
+     * Dùng `lockForUpdate()` để tránh race condition khi nhiều đơn cùng xuất một lúc.
+     * Nếu không đủ tồn kho → ném exception (transaction caller sẽ rollback).
+     *
+     * @param int $productId       ID sản phẩm cần xuất kho
+     * @param int $neededQuantity  Số lượng cần xuất
+     * @param GoodsIssue $goodsIssue Phiếu xuất cha (để link các detail)
+     * @return array ['cogs' => float, 'batches' => array]  — tổng giá vốn và danh sách batch đã dùng
+     * @throws \Exception nếu tồn kho không đủ
      */
     public function reduceStock(int $productId, int $neededQuantity, GoodsIssue $goodsIssue): array
     {

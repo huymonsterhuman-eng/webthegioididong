@@ -44,7 +44,7 @@ webthegioididong/
 │   └── Providers/              # Service Providers (AppServiceProvider, AdminPanelProvider)
 ├── config/                     # Cấu hình hệ thống
 ├── database/
-│   ├── migrations/             # ~47 migration files
+│   ├── migrations/             # ~54 migration files
 │   ├── factories/              # Mock data factories
 │   └── seeders/                # Dữ liệu mẫu
 ├── public/                     # Web root (index.php, compiled assets)
@@ -52,7 +52,7 @@ webthegioididong/
 │   ├── css/ & js/              # Source Tailwind CSS và Alpine.js
 │   └── views/                  # 43 Blade templates
 │       ├── layouts/            # app.blade.php, account.blade.php, guest.blade.php
-│       ├── components/         # 14 reusable Blade components
+│       ├── components/         # 15 reusable Blade components (gồm status-stepper)
 │       └── pdf/                # Invoice PDF template
 ├── routes/
 │   ├── web.php                 # Tất cả routes Frontend + Admin
@@ -140,13 +140,48 @@ webthegioididong/
 - Nhập kho qua `GoodsReceipt` → tạo `GoodsReceiptDetail` (batch/lô hàng) với `remaining_quantity`.
 - Khi Order chuyển sang `shipping`, `Order::handleStatusChange()` tự động tạo `GoodsIssue` và gọi `InventoryService::reduceStock()`.
 - `InventoryService` lấy batch theo `created_at ASC` (FIFO), dùng `lockForUpdate()` chống race condition.
-- Hủy đơn (`cancelled`) → tự động hoàn lại `remaining_quantity` cho các batch.
+- Hủy đơn (`cancelled`) → tự động hoàn lại `remaining_quantity` cho các batch (Observer cập nhật `product.stock`).
+- Stock **chỉ** thay đổi qua FIFO Observer — không trừ thủ công ở CartController.
+
+### Goods Receipt Status Workflow
+```
+pending (tạo phiếu, stock CHƯA cộng)
+  ├──→ completed (admin xác nhận, stock được cộng)
+  └──→ cancelled (admin huỷ, stock không đổi)
+```
+
+### Goods Issue Status Workflow
+```
+Auto (tự động từ đơn hàng): tạo phiếu = completed luôn (FIFO chạy ngay)
+Manual (thủ công):
+  pending (tạo phiếu, stock CHƯA trừ, lưu stub details)
+    ├──→ completed (admin duyệt, FIFO chạy → stock bị trừ)
+    └──→ cancelled (admin từ chối, stock không đổi)
+```
 
 ### Order Lifecycle
 ```
 pending → confirmed → shipping → delivered
-                   ↘ cancelled (hoàn kho + hoàn voucher)
+                   ↘ cancelled (hoàn voucher; nếu đã shipping thì hoàn kho qua Observer)
 ```
+
+### Available Stock (Tồn kho khả dụng)
+- `Product::available_stock` accessor = `stock − pending_orders_qty − pending_manual_issues_qty`.
+- Dùng để validate khi user checkout và khi admin duyệt phiếu xuất.
+- Ngăn over-commitment: tránh trường hợp 2 đơn cùng nhắm 1 sản phẩm cuối cùng.
+
+### Product Status (Kinh doanh / Ngừng kinh doanh)
+- Trường `products.is_active` — true = đang kinh doanh, false = ngừng.
+- Sản phẩm ngừng kinh doanh: ẩn khỏi frontend, ẩn khỏi form tạo phiếu nhập/xuất mới, tự xóa khỏi giỏ hàng user qua API stock-check.
+- Lịch sử (đơn cũ, phiếu nhập/xuất cũ) vẫn hiển thị bình thường.
+
+### Data Integrity — Snapshot Pattern
+Các trường snapshot được lưu lại tại thời điểm tạo giao dịch để bảo toàn lịch sử khi master data thay đổi:
+- `order_details.product_name`, `product_image`, `price_at_purchase`
+- `orders.shipping_provider_name` (tên đơn vị vận chuyển lúc gán)
+- `goods_receipts.supplier_name` (tên nhà cung cấp lúc tạo phiếu)
+- `goods_receipt_details.product_name`
+- `goods_receipts.supplier_id` FK dùng **restrictOnDelete** — không cho xóa supplier khi còn phiếu nhập.
 
 ### Product Routing (SEO)
 - URL: `/{categorySlug}/{productSlug}` — thân thiện SEO.

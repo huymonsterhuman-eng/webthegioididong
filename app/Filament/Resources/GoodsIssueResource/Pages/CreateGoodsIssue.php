@@ -10,10 +10,16 @@ use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * Trang tạo phiếu xuất kho thủ công.
+ * Khi tạo: status = pending, không chạy FIFO ngay.
+ * Tạo stub details (goods_receipt_detail_id = null) để chờ admin duyệt.
+ */
 class CreateGoodsIssue extends CreateRecord
 {
     protected static string $resource = GoodsIssueResource::class;
 
+    /** Gán mặc định: type=manual, status=pending, author = current admin */
     protected function mutateFormDataBeforeCreate(array $data): array
     {
         $data['type']      = 'manual';
@@ -24,6 +30,10 @@ class CreateGoodsIssue extends CreateRecord
         return $data;
     }
 
+    /**
+     * Tạo phiếu xuất + stub details trong 1 transaction.
+     * FIFO chưa chạy — sẽ chạy khi admin duyệt phiếu ở trang View/List.
+     */
     protected function handleRecordCreation(array $data): Model
     {
         $details = $data['details'] ?? [];

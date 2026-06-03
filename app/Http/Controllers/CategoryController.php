@@ -7,8 +7,13 @@ use App\Models\Category;
 use App\Models\Product;
 use App\Models\Brand;
 
+/**
+ * Controller trang danh mục — liệt kê sản phẩm theo danh mục cha + danh mục con.
+ * Hỗ trợ filter theo brand và sort theo giá.
+ */
 class CategoryController extends Controller
 {
+    /** Trang danh sách sản phẩm của 1 danh mục (kèm danh mục con) */
     public function show(Request $request, $slug)
     {
         $category = Category::where('slug', $slug)->where('is_active', true)->firstOrFail();

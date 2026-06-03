@@ -7,10 +7,16 @@ use Filament\Actions;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 
+/**
+ * Trang Edit đối tác (nhà cung cấp / đơn vị vận chuyển).
+ * Chặn xoá nhà cung cấp đang có phiếu nhập.
+ * Cảnh báo khi đổi tên đối tác đang có giao dịch (lịch sử cũ được bảo vệ bằng snapshot).
+ */
 class EditPartner extends EditRecord
 {
     protected static string $resource = PartnerResource::class;
 
+    /** Nút Delete có ràng buộc — chặn xoá supplier khi còn phiếu nhập */
     protected function getHeaderActions(): array
     {
         return [
@@ -29,6 +35,10 @@ class EditPartner extends EditRecord
         ];
     }
 
+    /**
+     * Sau khi lưu: nếu admin đổi tên đối tác đang có giao dịch,
+     * hiển thị thông báo nhắc nhở (lịch sử cũ vẫn an toàn nhờ cột snapshot).
+     */
     protected function afterSave(): void
     {
         $record = $this->record;

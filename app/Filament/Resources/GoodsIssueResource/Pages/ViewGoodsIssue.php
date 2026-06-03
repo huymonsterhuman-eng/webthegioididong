@@ -12,10 +12,17 @@ use Filament\Infolists\Infolist;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
 
+/**
+ * Trang xem chi tiết phiếu xuất kho. Hiển thị status stepper + 2 action
+ * (chỉ cho phiếu thủ công manual ở status pending):
+ *   - "Duyệt phiếu xuất": chạy FIFO trừ kho → status = completed.
+ *   - "Từ chối": status = cancelled, stock không đổi.
+ */
 class ViewGoodsIssue extends ViewRecord
 {
     protected static string $resource = GoodsIssueResource::class;
 
+    /** Action Duyệt / Từ chối — chỉ hiện cho phiếu manual đang pending */
     protected function getHeaderActions(): array
     {
         return [

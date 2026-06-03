@@ -7,6 +7,10 @@ use Filament\Actions;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 
+/**
+ * Trang Edit sản phẩm trong Filament admin.
+ * Chặn việc chuyển sản phẩm sang "Ngừng kinh doanh" nếu còn đơn hàng chưa xử lý xong.
+ */
 class EditProduct extends EditRecord
 {
     protected static string $resource = ProductResource::class;
@@ -18,6 +22,11 @@ class EditProduct extends EditRecord
         ];
     }
 
+    /**
+     * Trước khi lưu: nếu admin đang chuyển is_active từ true → false,
+     * kiểm tra xem sản phẩm có nằm trong đơn hàng pending/confirmed/shipping
+     * nào không. Nếu có → chặn và hiển thị thông báo.
+     */
     protected function beforeSave(): void
     {
         $data   = $this->data;

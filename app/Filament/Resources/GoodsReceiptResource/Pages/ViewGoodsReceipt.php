@@ -10,10 +10,16 @@ use Filament\Infolists\Infolist;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
 
+/**
+ * Trang xem chi tiết phiếu nhập kho. Hiển thị status stepper + 2 action:
+ *   - "Xác nhận nhập kho": pending → completed (cộng stock).
+ *   - "Huỷ phiếu": pending → cancelled (không động stock).
+ */
 class ViewGoodsReceipt extends ViewRecord
 {
     protected static string $resource = GoodsReceiptResource::class;
 
+    /** Nút Xác nhận / Huỷ phiếu — chỉ hiện khi status = pending */
     protected function getHeaderActions(): array
     {
         return [

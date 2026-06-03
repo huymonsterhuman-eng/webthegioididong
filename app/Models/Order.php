@@ -7,6 +7,14 @@ use App\Models\GoodsIssue;
 use App\Models\GoodsIssueDetail;
 use App\Models\GoodsReceiptDetail;
 
+/**
+ * Đơn hàng của khách hàng.
+ *
+ * Lifecycle: pending → confirmed → shipping → delivered (hoặc cancelled).
+ * Khi chuyển sang `shipping`: tự động tạo GoodsIssue + chạy FIFO trừ kho.
+ * Khi `cancelled` sau khi đã ship: tự động hoàn lại remaining_quantity cho batch (Observer cộng lại stock).
+ * `shipping_provider_name` là snapshot — không đổi khi đối tác vận chuyển đổi tên.
+ */
 class Order extends Model
 {
     use \Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -47,28 +55,33 @@ class Order extends Model
         return $this->belongsTo(User::class);
     }
 
+    /** Voucher khách áp dụng cho đơn hàng */
     public function voucher(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(Voucher::class);
     }
 
+    /** Danh sách sản phẩm trong đơn (kèm snapshot tên, ảnh, giá) */
     public function orderDetails(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(OrderDetail::class);
     }
 
+    /** Đơn vị vận chuyển (FK đến bảng partners type=shipping_provider) */
     public function partner(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(Partner::class);
     }
 
+    /** Lịch sử thao tác trên đơn hàng này (polymorphic) */
     public function activities(): \Illuminate\Database\Eloquent\Relations\MorphMany
     {
         return $this->morphMany(ActivityLog::class, 'subject');
     }
 
     /**
-     * Get the formatted order code attribute.
+     * Mã đơn hàng được tạo tự động dạng "ORD-YYYYMMDD-NNN" (NNN là id padded 3 số).
+     * Đây là accessor — không có cột thật trong DB.
      */
     protected function orderCode(): \Illuminate\Database\Eloquent\Casts\Attribute
     {
@@ -77,6 +90,10 @@ class Order extends Model
         );
     }
 
+    /**
+     * Lifecycle hooks: auto-set delivered_at/cancelled_at theo trạng thái,
+     * và trigger handleStatusChange() sau mỗi lần create/update.
+     */
     protected static function booted()
     {
         static::creating(function ($order) {
@@ -112,7 +129,11 @@ class Order extends Model
     }
 
     /**
-     * Handle logic when order status changes (Inventory, Vouchers, etc.)
+     * Xử lý nghiệp vụ khi trạng thái đơn hàng thay đổi.
+     *
+     * - cancelled: hoàn voucher; nếu đã có GoodsIssue (đã ship) thì hoàn lại
+     *   remaining_quantity cho batch — Observer sẽ tự cộng lại stock.
+     * - shipping: tự động tạo GoodsIssue và chạy FIFO trừ kho qua InventoryService.
      */
     public function handleStatusChange(): void
     {

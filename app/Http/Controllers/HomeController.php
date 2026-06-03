@@ -7,8 +7,13 @@ use App\Models\Category;
 use App\Models\Product;
 use App\Models\Post;
 
+/**
+ * Controller trang chủ — tổng hợp dữ liệu cho landing page:
+ * banners, collections nổi bật, sản phẩm hot, voucher còn hạn, bài viết mới.
+ */
 class HomeController extends Controller
 {
+    /** Hiển thị trang chủ với toàn bộ dữ liệu cần thiết (1 query/section) */
     public function index()
     {
         // Get collections for the homepage blocks

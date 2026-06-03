@@ -26,6 +26,13 @@ class CartController extends Controller
         return view('checkout', compact('vouchers', 'addresses'));
     }
 
+    /**
+     * Xử lý checkout: validate available_stock, tạo Order + OrderDetails,
+     * áp voucher (nếu có) — tất cả trong 1 DB transaction.
+     *
+     * Lưu ý: stock KHÔNG bị trừ ở đây — chỉ trừ khi đơn chuyển sang "shipping"
+     * qua InventoryService (FIFO). Việc trừ ở đây sẽ gây double deduction.
+     */
     public function processCheckout(Request $request)
     {
         $validated = $request->validate([
@@ -236,6 +243,11 @@ class CartController extends Controller
         ]);
     }
 
+    /**
+     * API kiểm tra tồn kho realtime cho cart frontend (Alpine.js).
+     * Trả về stock hiện tại + danh sách product ngừng kinh doanh để client tự
+     * cập nhật giỏ hàng (xoá item ngừng KD, giảm quantity nếu vượt stock).
+     */
     public function checkStock(Request $request)
     {
         $request->validate([

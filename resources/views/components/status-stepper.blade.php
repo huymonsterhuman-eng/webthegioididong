@@ -1,4 +1,20 @@
+{{--
+    Component: Thanh trạng thái dạng stepper (vòng tròn + đường nối).
+    Dùng cho Phiếu Nhập / Phiếu Xuất / Đơn hàng.
+
+    Props:
+      - $steps:    array các bước, ví dụ [['key'=>'pending','label'=>'Chờ duyệt'], ...]
+      - $current:  status hiện tại (key trong $steps)
+      - $cancelled: bool — true thì hiện banner đỏ "Đã huỷ" + làm mờ stepper
+
+    Logic màu:
+      - Bước đã qua  → xanh lá (có dấu check)
+      - Bước hiện tại → xanh dương (highlight)
+      - Bước chưa tới → xám
+      - Khi cancelled → toàn bộ mờ + banner đỏ
+--}}
 @php
+    // Tìm index của bước hiện tại để biết bước nào "đã qua" / "chưa tới"
     $statusOrder = array_column($steps, 'key');
     $currentIndex = array_search($current, $statusOrder);
     $isCancelled = $cancelled ?? false;
