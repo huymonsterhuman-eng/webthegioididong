@@ -11,8 +11,12 @@ return new class extends Migration
         Schema::table('order_details', function (Blueprint $table) {
             // Snapshot product info at time of purchase
             // This ensures order history is intact even if product is soft-deleted
-            $table->string('product_name')->nullable()->after('product_id');
-            $table->string('product_image')->nullable()->after('product_name');
+            if (!Schema::hasColumn('order_details', 'product_name')) {
+                $table->string('product_name')->nullable()->after('product_id');
+            }
+            if (!Schema::hasColumn('order_details', 'product_image')) {
+                $table->string('product_image')->nullable()->after('product_name');
+            }
         });
 
         // Backfill existing records with product data
