@@ -16,13 +16,17 @@ return new class extends Migration
         });
 
         // Backfill existing records with product data
-        \DB::statement("
-            UPDATE order_details od
-            LEFT JOIN products p ON od.product_id = p.id
-            SET od.product_name = COALESCE(p.name, 'Sản phẩm không tồn tại'),
-                od.product_image = p.image
-            WHERE od.product_name IS NULL
-        ");
+        \DB::table('order_details')
+            ->whereNull('product_name')
+            ->each(function ($detail) {
+                $product = \DB::table('products')->find($detail->product_id);
+                \DB::table('order_details')
+                    ->where('id', $detail->id)
+                    ->update([
+                        'product_name'  => $product ? $product->name : 'Sản phẩm không tồn tại',
+                        'product_image' => $product ? $product->image : null,
+                    ]);
+            });
     }
 
     public function down(): void
