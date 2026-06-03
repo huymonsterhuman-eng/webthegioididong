@@ -47,16 +47,14 @@ return new class extends Migration
         // 2. Rename image → images and change to JSON
         // Only perform if the old 'image' column still exists
         if (Schema::hasColumn('reviews', 'image') && !Schema::hasColumn('reviews', 'images')) {
-            \DB::transaction(function () {
-                // Only update if the image doesn't look like JSON already (doesn't start with [ or {)
-                \DB::statement("UPDATE reviews SET `image` = CONCAT('[\"', `image`, '\"]') 
-                               WHERE `image` IS NOT NULL 
-                               AND `image` != '' 
-                               AND `image` NOT LIKE '[%' 
-                               AND `image` NOT LIKE '{%'");
-                
-                \DB::statement("ALTER TABLE reviews CHANGE `image` `images` JSON NULL");
-            });
+            // Only update if the image doesn't look like JSON already (doesn't start with [ or {)
+            \DB::statement("UPDATE reviews SET `image` = CONCAT('[\"', `image`, '\"]')
+                           WHERE `image` IS NOT NULL
+                           AND `image` != ''
+                           AND `image` NOT LIKE '[%'
+                           AND `image` NOT LIKE '{%'");
+
+            \DB::statement("ALTER TABLE reviews CHANGE `image` `images` JSON NULL");
         }
     }
 
