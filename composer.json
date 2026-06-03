@@ -88,6 +88,10 @@
         "audit": {
             "abandoned": "ignore",
             "block-insecure": false
+        },
+        "platform": {
+            "ext-intl": "8.2",
+            "ext-zip": "8.2"
         }
     },
     "minimum-stability": "stable",
