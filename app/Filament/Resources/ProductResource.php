@@ -54,7 +54,7 @@ class ProductResource extends Resource
                     ->numeric()
                     ->suffix(' ₫'),
                 Forms\Components\FileUpload::make('image')
-                    ->disk('public')
+                    ->disk(config('filesystems.default'))
                     ->directory('img')
                     ->image()
                     ->imageEditor()
@@ -89,7 +89,7 @@ class ProductResource extends Resource
             ->columns([
                 Tables\Columns\ImageColumn::make('image')
                     ->label('Hình ảnh')
-                    ->disk('public')
+                    ->disk(config('filesystems.default'))
                     ->getStateUsing(function ($record) {
                         $image = $record->primaryImage ? $record->primaryImage->path : $record->image;
                         return $image ?: null;

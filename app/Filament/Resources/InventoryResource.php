@@ -39,7 +39,7 @@ class InventoryResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\ImageColumn::make('image')
-                    ->disk('public')
+                    ->disk(config('filesystems.default'))
                     ->defaultImageUrl(url('storage/img/placeholder.jpg'))
                     ->square()
                     ->width(50)

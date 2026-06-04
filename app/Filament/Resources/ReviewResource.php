@@ -54,7 +54,7 @@ class ReviewResource extends Resource
 
                         Forms\Components\FileUpload::make('image')
                             ->image()
-                            ->disk('public')
+                            ->disk(config('filesystems.default'))
                             ->directory('reviews')
                             ->disabled()
                             ->columnSpanFull()

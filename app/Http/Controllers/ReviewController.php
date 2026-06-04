@@ -25,7 +25,7 @@ class ReviewController extends Controller
 
         $imagePath = null;
         if ($request->hasFile('image')) {
-            $imagePath = $request->file('image')->store('reviews', 'public');
+            $imagePath = $request->file('image')->store('reviews', config('filesystems.default'));
         }
 
         $product->reviews()->create([

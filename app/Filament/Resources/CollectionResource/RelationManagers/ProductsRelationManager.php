@@ -35,7 +35,7 @@ class ProductsRelationManager extends RelationManager
             ->columns([
                 Tables\Columns\ImageColumn::make('image')
                     ->label('Hình ảnh')
-                    ->disk('public')
+                    ->disk(config('filesystems.default'))
                     ->getStateUsing(function ($record) {
                         $image = $record->primaryImage ? $record->primaryImage->path : $record->image;
                         return $image ?: null;
