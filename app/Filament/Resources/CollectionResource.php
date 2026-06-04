@@ -67,6 +67,7 @@ class CollectionResource extends Resource
                         Forms\Components\FileUpload::make('image')
                             ->label('Hình ảnh đại diện')
                             ->image()
+                            ->disk(config('filesystems.default'))
                             ->directory('collections'),
                     ])
                 ])->columnSpan(['lg' => 1]),
@@ -79,6 +80,7 @@ class CollectionResource extends Resource
             ->columns([
                 Tables\Columns\ImageColumn::make('image')
                     ->label('Hình ảnh')
+                    ->disk(config('filesystems.default'))
                     ->circular(),
                 Tables\Columns\TextColumn::make('name')
                     ->label('Tên bộ sưu tập')
