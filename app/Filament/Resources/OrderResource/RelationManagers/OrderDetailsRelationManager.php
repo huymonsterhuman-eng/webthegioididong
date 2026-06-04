@@ -53,13 +53,11 @@ class OrderDetailsRelationManager extends RelationManager
                 Tables\Columns\ImageColumn::make('product_image')
                     ->label('Image')
                     ->getStateUsing(function ($record) {
-                        if (empty($record->product_image))
-                            return url('storage/img/placeholder.jpg');
                         $img = $record->product_image;
+                        if (empty($img))
+                            return \Illuminate\Support\Facades\Storage::url('img/placeholder.jpg');
                         if (str_starts_with($img, 'http'))
                             return $img;
-                        if (str_starts_with($img, 'img/'))
-                            return url('storage/' . $img);
                         return \Illuminate\Support\Facades\Storage::url($img);
                     })
                     ->square()
