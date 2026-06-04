@@ -143,60 +143,89 @@ class GoodsIssueResource extends Resource
             ->actions([
                 Tables\Actions\ViewAction::make()->label('Chi tiết'),
 
-                // Duyệt phiếu xuất thủ công trực tiếp từ danh sách
+                // Duyệt phiếu xuất (manual) hoặc Bàn giao ĐVVC (auto từ đơn hàng)
                 Tables\Actions\Action::make('approve_issue')
-                    ->label('Duyệt')
-                    ->icon('heroicon-o-check-circle')
+                    ->label(fn ($record) => $record->type === 'auto' ? 'Bàn giao ĐVVC' : 'Duyệt')
+                    ->icon('heroicon-o-truck')
                     ->color('success')
                     ->requiresConfirmation()
-                    ->modalHeading('Duyệt phiếu xuất kho?')
-                    ->modalDescription('Hành động này sẽ trừ tồn kho theo FIFO và không thể hoàn tác.')
-                    ->visible(fn ($record) => $record->type === 'manual' && $record->isPending())
+                    ->modalHeading(fn ($record) => $record->type === 'auto'
+                        ? 'Xác nhận bàn giao hàng cho đơn vị vận chuyển?'
+                        : 'Duyệt phiếu xuất kho?')
+                    ->modalDescription(fn ($record) => $record->type === 'auto'
+                        ? 'Hàng sẽ được bàn giao cho ĐVVC. Tồn kho sẽ bị trừ theo FIFO và đơn hàng chuyển sang "Đang giao hàng". Không thể hoàn tác.'
+                        : 'Hành động này sẽ trừ tồn kho theo FIFO và không thể hoàn tác.')
+                    ->visible(fn ($record) => $record->isPending())
                     ->action(function ($record) {
-                        // Kiểm tra available_stock trước khi duyệt
-                        // (tránh duyệt lấy hết stock cần cho đơn hàng pending khác)
-                        $stubs = $record->details()->whereNull('goods_receipt_detail_id')->get();
-                        foreach ($stubs as $stub) {
-                            $product = \App\Models\Product::find($stub->product_id);
-                            if (!$product) continue;
-                            if ($product->available_stock < $stub->quantity) {
-                                \Filament\Notifications\Notification::make()
-                                    ->danger()
-                                    ->title('Không đủ stock khả dụng')
-                                    ->body("Sản phẩm \"{$product->name}\" chỉ còn {$product->available_stock} cái khả dụng (đã trừ đơn hàng đang chờ), cần {$stub->quantity} cái.")
-                                    ->send();
-                                return;
-                            }
-                        }
-
                         $inventoryService = new \App\Services\InventoryService();
+
                         try {
                             \Illuminate\Support\Facades\DB::transaction(function () use ($record, $inventoryService) {
-                                foreach ($record->details->whereNull('goods_receipt_detail_id') as $stub) {
-                                    $inventoryService->reduceStock($stub->product_id, $stub->quantity, $record);
+                                if ($record->type === 'auto' && $record->order_id) {
+                                    // Auto phiếu từ đơn hàng: FIFO theo orderDetails, xóa stubs trước
+                                    $record->details()->delete(); // Xóa stub details (goods_receipt_detail_id=null)
+
+                                    $allBatches = [];
+                                    foreach ($record->order->orderDetails as $orderDetail) {
+                                        $result = $inventoryService->reduceStock(
+                                            $orderDetail->product_id,
+                                            $orderDetail->quantity,
+                                            $record
+                                        );
+                                        $allBatches = array_merge($allBatches, $result['batches']);
+                                    }
+
+                                    $totalCogs = $record->details()->sum('total_price');
+                                    $record->update(['status' => 'completed', 'total_cogs' => $totalCogs]);
+
+                                    // Chuyển đơn hàng sang shipping
+                                    $record->order->update(['status' => 'shipping']);
+
+                                    \App\Services\ActivityLogService::log(
+                                        'order_shipped',
+                                        "Phiếu xuất #{$record->id} hoàn thành. Đơn hàng #{$record->order_id} chuyển sang Đang giao hàng.",
+                                        'inventory',
+                                        $record,
+                                        ['order_id' => $record->order_id, 'batches' => $allBatches]
+                                    );
+                                } else {
+                                    // Manual phiếu: xử lý stubs như cũ
+                                    $stubs = $record->details()->whereNull('goods_receipt_detail_id')->get();
+                                    foreach ($stubs as $stub) {
+                                        $product = \App\Models\Product::find($stub->product_id);
+                                        if ($product && $product->available_stock < $stub->quantity) {
+                                            throw new \Exception("Sản phẩm \"{$product->name}\" chỉ còn {$product->available_stock} cái, cần {$stub->quantity} cái.");
+                                        }
+                                    }
+                                    foreach ($stubs as $stub) {
+                                        $inventoryService->reduceStock($stub->product_id, $stub->quantity, $record);
+                                    }
+                                    $record->details()->whereNull('goods_receipt_detail_id')->delete();
+                                    $totalCogs = $record->details()->sum('total_price');
+                                    $record->update(['status' => 'completed', 'total_cogs' => $totalCogs]);
+
+                                    \App\Services\ActivityLogService::log('approve_manual_issue', "Đã duyệt phiếu xuất #{$record->id}", 'inventory', $record, []);
                                 }
-                                $record->details()->whereNull('goods_receipt_detail_id')->delete();
-                                $totalCogs = $record->details()->sum('total_price');
-                                $record->update(['status' => 'completed', 'total_cogs' => $totalCogs]);
                             });
-                            \App\Services\ActivityLogService::log('approve_manual_issue', "Đã duyệt phiếu xuất #{$record->id}", 'inventory', $record, []);
+
+                            $label = $record->type === 'auto' ? 'Đã bàn giao ĐVVC — đơn hàng chuyển sang Đang giao hàng' : 'Đã duyệt — tồn kho đã được trừ';
                             \Filament\Notifications\Notification::make()
-                                ->success()->title('Đã duyệt — tồn kho đã được trừ')->send();
+                                ->success()->title($label)->send();
                         } catch (\Exception $e) {
                             \Filament\Notifications\Notification::make()
                                 ->danger()->title('Lỗi: ' . $e->getMessage())->send();
                         }
                     }),
 
-                // Từ chối phiếu xuất thủ công
+                // Từ chối / Hủy phiếu xuất (manual hoặc auto pending)
                 Tables\Actions\Action::make('reject_issue')
                     ->label('Từ chối')
                     ->icon('heroicon-o-x-circle')
                     ->color('danger')
                     ->requiresConfirmation()
-                    ->modalHeading('Từ chối phiếu xuất?')
-                    ->modalDescription('Phiếu sẽ bị huỷ. Tồn kho không thay đổi.')
-                    ->visible(fn ($record) => $record->type === 'manual' && $record->isPending())
+                    ->modalHeading('Từ chối / Hủy phiếu xuất?')
+                    ->modalDescription('Phiếu sẽ bị huỷ. Tồn kho không thay đổi vì FIFO chưa chạy.')
+                    ->visible(fn ($record) => $record->isPending())
                     ->action(function ($record) {
                         $record->update(['status' => 'cancelled']);
                         \Filament\Notifications\Notification::make()

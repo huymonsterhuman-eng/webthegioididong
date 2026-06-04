@@ -189,9 +189,10 @@ class OrderResource extends Resource
                                     Forms\Components\Select::make('status')
                                         ->label('Trạng thái đơn')
                                         ->options([
-                                            'pending' => 'Chờ xử lý',
+                                            'pending'   => 'Chờ xử lý',
                                             'confirmed' => 'Đã xác nhận',
-                                            'shipping' => 'Đang giao hàng',
+                                            'preparing' => 'Đang chuẩn bị hàng',
+                                            'shipping'  => 'Đang giao hàng',
                                             'delivered' => 'Đã giao thành công',
                                             'cancelled' => 'Đã hủy',
                                         ])
@@ -212,7 +213,16 @@ class OrderResource extends Resource
                                         ])
                                         ->default('cod')
                                         ->required()
-                                        ->native(false),
+                                        ->native(false)
+                                        ->live()
+                                        ->afterStateUpdated(function ($state, Set $set) {
+                                            // VNPay/MoMo: đã thanh toán online → tự set paid
+                                            if (in_array($state, ['vnpay', 'momo'])) {
+                                                $set('payment_status', 'paid');
+                                            } elseif ($state === 'cod') {
+                                                $set('payment_status', 'unpaid');
+                                            }
+                                        }),
 
                                     Forms\Components\Select::make('payment_status')
                                         ->label('Trạng thái TT')
@@ -296,21 +306,57 @@ class OrderResource extends Resource
                 Tables\Columns\TextColumn::make('status')
                     ->badge()
                     ->color(fn(string $state): string => match ($state) {
-                        'pending' => 'warning',
+                        'pending'   => 'warning',
                         'confirmed' => 'info',
-                        'shipping' => 'warning',
+                        'preparing' => 'purple',
+                        'shipping'  => 'warning',
                         'delivered' => 'success',
                         'cancelled' => 'danger',
-                        default => 'gray',
+                        default     => 'gray',
                     })
                     ->formatStateUsing(fn(string $state): string => match ($state) {
-                        'pending' => 'Chờ xử lý',
+                        'pending'   => 'Chờ xử lý',
                         'confirmed' => 'Đã xác nhận',
-                        'shipping' => 'Đang giao hàng',
+                        'preparing' => 'Đang chuẩn bị',
+                        'shipping'  => 'Đang giao hàng',
                         'delivered' => 'Đã giao',
                         'cancelled' => 'Đã hủy',
-                        default => ucfirst($state),
+                        default     => ucfirst($state),
                     }),
+                Tables\Columns\TextColumn::make('payment_method')
+                    ->label('PT Thanh toán')
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'vnpay'  => 'info',
+                        'momo'   => 'pink',
+                        'cod'    => 'gray',
+                        'manual' => 'warning',
+                        default  => 'gray',
+                    })
+                    ->formatStateUsing(fn (string $state): string => match ($state) {
+                        'cod'    => 'COD',
+                        'vnpay'  => 'VNPay',
+                        'momo'   => 'MoMo',
+                        'manual' => 'Thủ công',
+                        default  => $state,
+                    })
+                    ->toggleable(),
+                Tables\Columns\TextColumn::make('payment_status')
+                    ->label('TT Thanh toán')
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'paid'     => 'success',
+                        'unpaid'   => 'danger',
+                        'refunded' => 'warning',
+                        default    => 'gray',
+                    })
+                    ->formatStateUsing(fn (string $state): string => match ($state) {
+                        'paid'     => 'Đã thanh toán',
+                        'unpaid'   => 'Chưa thanh toán',
+                        'refunded' => 'Hoàn tiền',
+                        default    => $state,
+                    })
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime('d/m/Y H:i')
                     ->sortable(),
@@ -327,11 +373,12 @@ class OrderResource extends Resource
             ->filters([
                 SelectFilter::make('status')
                     ->options([
-                        'pending' => 'Pending',
-                        'confirmed' => 'Confirmed',
-                        'shipping' => 'Shipping',
-                        'delivered' => 'Delivered',
-                        'cancelled' => 'Cancelled',
+                        'pending'   => 'Chờ xử lý',
+                        'confirmed' => 'Đã xác nhận',
+                        'preparing' => 'Đang chuẩn bị',
+                        'shipping'  => 'Đang giao hàng',
+                        'delivered' => 'Đã giao',
+                        'cancelled' => 'Đã hủy',
                     ]),
                 Filter::make('created_at')
                     ->form([
@@ -370,8 +417,8 @@ class OrderResource extends Resource
                         }),
 
                     Tables\Actions\Action::make('ship')
-                        ->label('Giao hàng')
-                        ->icon('heroicon-o-truck')
+                        ->label('Chuyển kho')
+                        ->icon('heroicon-o-archive-box-arrow-down')
                         ->color('warning')
                         ->form([
                             Forms\Components\Select::make('partner_id')
@@ -383,18 +430,18 @@ class OrderResource extends Resource
                                 ->default(fn() => 'SHIP-' . strtoupper(Str::random(10)))
                                 ->required(),
                         ])
-                        ->visible(fn (Order $record): bool => in_array($record->status, ['pending', 'confirmed']))
+                        ->visible(fn (Order $record): bool => $record->status === 'confirmed')
                         ->action(function (Order $record, array $data): void {
                             $partner = \App\Models\Partner::find($data['partner_id']);
                             $record->update([
-                                'status'                  => 'shipping',
+                                'status'                  => 'preparing',
                                 'partner_id'              => $data['partner_id'],
                                 'shipping_provider_name'  => $partner?->name, // snapshot
                                 'tracking_number'         => $data['tracking_number'],
                             ]);
 
                             Notification::make()
-                                ->title('Đã chuyển sang trạng thái đang giao hàng')
+                                ->title('Đã chuyển kho — phiếu xuất đang chờ kho xử lý')
                                 ->success()
                                 ->send();
                         }),
@@ -406,10 +453,15 @@ class OrderResource extends Resource
                         ->requiresConfirmation()
                         ->visible(fn (Order $record): bool => $record->status === 'shipping')
                         ->action(function (Order $record): void {
-                            $record->update(['status' => 'delivered']);
+                            $updateData = ['status' => 'delivered'];
+                            // COD: tự động cập nhật payment_status = paid khi giao thành công
+                            if ($record->payment_method === 'cod') {
+                                $updateData['payment_status'] = 'paid';
+                            }
+                            $record->update($updateData);
 
                             Notification::make()
-                                ->title('Đã hoàn thành đơn hàng')
+                                ->title('Đã hoàn thành đơn hàng' . ($record->payment_method === 'cod' ? ' — thanh toán COD đã thu' : ''))
                                 ->success()
                                 ->send();
                         }),
@@ -419,7 +471,12 @@ class OrderResource extends Resource
                         ->icon('heroicon-o-x-circle')
                         ->color('danger')
                         ->requiresConfirmation()
-                        ->visible(fn (Order $record): bool => in_array($record->status, ['pending', 'confirmed']))
+                        ->modalDescription(fn (Order $record) => match($record->status) {
+                            'shipping'  => 'Đơn đang giao hàng. Hủy sẽ hoàn lại tồn kho tự động.',
+                            'preparing' => 'Đơn đang chuẩn bị hàng. Phiếu xuất sẽ bị hủy (tồn kho không đổi).',
+                            default     => 'Xác nhận hủy đơn hàng này?',
+                        })
+                        ->visible(fn (Order $record): bool => in_array($record->status, ['pending', 'confirmed', 'preparing', 'shipping']))
                         ->action(function (Order $record): void {
                             $record->update(['status' => 'cancelled']);
 
@@ -465,20 +522,22 @@ class OrderResource extends Resource
                                         ->label('Trạng thái')
                                         ->badge()
                                         ->color(fn(string $state): string => match ($state) {
-                                            'pending' => 'warning',
+                                            'pending'   => 'warning',
                                             'confirmed' => 'info',
-                                            'shipping' => 'warning',
+                                            'preparing' => 'purple',
+                                            'shipping'  => 'warning',
                                             'delivered' => 'success',
                                             'cancelled' => 'danger',
-                                            default => 'gray',
+                                            default     => 'gray',
                                         })
                                         ->formatStateUsing(fn(string $state): string => match ($state) {
-                                            'pending' => 'Chờ xử lý',
+                                            'pending'   => 'Chờ xử lý',
                                             'confirmed' => 'Đã xác nhận',
-                                            'shipping' => 'Đang giao hàng',
+                                            'preparing' => 'Đang chuẩn bị hàng',
+                                            'shipping'  => 'Đang giao hàng',
                                             'delivered' => 'Đã giao',
                                             'cancelled' => 'Đã hủy',
-                                            default => ucfirst($state),
+                                            default     => ucfirst($state),
                                         }),
                                     Infolists\Components\TextEntry::make('created_at')
                                         ->label('Ngày đặt hàng')

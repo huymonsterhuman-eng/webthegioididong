@@ -10,9 +10,11 @@ use App\Models\GoodsReceiptDetail;
 /**
  * Đơn hàng của khách hàng.
  *
- * Lifecycle: pending → confirmed → shipping → delivered (hoặc cancelled).
- * Khi chuyển sang `shipping`: tự động tạo GoodsIssue + chạy FIFO trừ kho.
- * Khi `cancelled` sau khi đã ship: tự động hoàn lại remaining_quantity cho batch (Observer cộng lại stock).
+ * Lifecycle: pending → confirmed → preparing → shipping → delivered (hoặc cancelled).
+ * Khi chuyển sang `preparing`: tự động tạo GoodsIssue(pending) + stub details. Kho xử lý & bàn giao ĐVVC.
+ * Khi GoodsIssue → completed (kho duyệt): FIFO chạy, stock trừ, order → shipping.
+ * Khi `cancelled` sau khi GoodsIssue=completed: tự động hoàn lại remaining_quantity cho batch.
+ * Khi `cancelled` khi GoodsIssue=pending: chỉ cancel phiếu, không ảnh hưởng stock.
  * `shipping_provider_name` là snapshot — không đổi khi đối tác vận chuyển đổi tên.
  */
 class Order extends Model
@@ -38,6 +40,7 @@ class Order extends Model
         'discount_amount',
         'delivered_at',
         'cancelled_at',
+        'preparing_at',
     ];
 
     protected $casts = [
@@ -47,6 +50,7 @@ class Order extends Model
         'shipping_fee'   => 'decimal:2',
         'delivered_at'   => 'datetime',
         'cancelled_at'   => 'datetime',
+        'preparing_at'   => 'datetime',
         'payment_status' => 'string',
     ];
 
@@ -97,11 +101,15 @@ class Order extends Model
     protected static function booted()
     {
         static::creating(function ($order) {
-            // Set timestamps when status is preset
-            if ($order->status === 'shipping') {
-                // Usually doesn't happen on creation but good for consistency
+            // Auto-set payment_status = paid cho đơn chuyển khoản online
+            if (in_array($order->payment_method, ['vnpay', 'momo']) && empty($order->payment_status)) {
+                $order->payment_status = 'paid';
             }
-            if ($order->status === 'delivered') {
+
+            // Set timestamps khi status được preset lúc tạo đơn
+            if ($order->status === 'preparing') {
+                $order->preparing_at = now();
+            } elseif ($order->status === 'delivered') {
                 $order->delivered_at = now();
             } elseif ($order->status === 'cancelled') {
                 $order->cancelled_at = now();
@@ -115,7 +123,9 @@ class Order extends Model
         static::updating(function ($order) {
             // Set timestamps when status changes
             if ($order->isDirty('status')) {
-                if ($order->status === 'delivered') {
+                if ($order->status === 'preparing') {
+                    $order->preparing_at = now();
+                } elseif ($order->status === 'delivered') {
                     $order->delivered_at = now();
                 } elseif ($order->status === 'cancelled') {
                     $order->cancelled_at = now();
@@ -131,99 +141,88 @@ class Order extends Model
     /**
      * Xử lý nghiệp vụ khi trạng thái đơn hàng thay đổi.
      *
-     * - cancelled: hoàn voucher; nếu đã có GoodsIssue (đã ship) thì hoàn lại
-     *   remaining_quantity cho batch — Observer sẽ tự cộng lại stock.
-     * - shipping: tự động tạo GoodsIssue và chạy FIFO trừ kho qua InventoryService.
+     * - preparing: tạo GoodsIssue(pending) + stub details để kho xử lý.
+     *   FIFO chưa chạy, stock chưa bị trừ tại bước này.
+     *   Kho duyệt phiếu xuất (GoodsIssue → completed) → FIFO chạy → order → shipping.
+     *
+     * - cancelled: hoàn voucher; nếu GoodsIssue=completed thì hoàn lại stock (Observer xử lý);
+     *   nếu GoodsIssue=pending thì chỉ cancel phiếu, không ảnh hưởng stock.
      */
     public function handleStatusChange(): void
     {
-        // 1. Handle Cancellation (Restock vouchers & Goods Issue)
-        if ($this->wasChanged('status') || $this->wasRecentlyCreated) {
-            if ($this->status === 'cancelled') {
-                if ($this->voucher_id && $this->user_id) {
-                    $voucher = Voucher::find($this->voucher_id);
-                    if ($voucher) {
-                        if ($voucher->used_count > 0) {
-                            $voucher->decrement('used_count');
-                        }
-                        $userVoucher = $voucher->users()->where('user_id', $this->user_id)->first();
-                        if ($userVoucher && $userVoucher->pivot->is_used) {
-                            $voucher->users()->updateExistingPivot($this->user_id, ['is_used' => false]);
-                        }
-                    }
-                }
+        if (!($this->wasChanged('status') || $this->wasRecentlyCreated)) {
+            return;
+        }
 
-                // Nếu đơn đã shipping (có GoodsIssue), hoàn lại remaining_quantity.
-                // Observer sẽ tự cộng stock khi remaining_quantity tăng — KHÔNG tự increment stock ở đây
-                // để tránh double increment.
-                // Nếu đơn chỉ pending/confirmed (chưa shipping), stock chưa bao giờ bị trừ → không cần restore.
-                $goodsIssue = GoodsIssue::where('order_id', $this->id)->where('status', 'completed')->first();
-                if ($goodsIssue) {
-                    $goodsIssue->update(['status' => 'cancelled']);
-                    foreach ($goodsIssue->details as $detail) {
-                        $receiptDetail = GoodsReceiptDetail::find($detail->goods_receipt_detail_id);
-                        if ($receiptDetail) {
-                            $receiptDetail->increment('remaining_quantity', $detail->quantity);
-                            // Observer.updated() sẽ tự gọi Product.increment('stock', diff)
-                        }
+        // 1. Handle Cancellation
+        if ($this->status === 'cancelled') {
+            // Hoàn voucher
+            if ($this->voucher_id && $this->user_id) {
+                $voucher = Voucher::find($this->voucher_id);
+                if ($voucher) {
+                    if ($voucher->used_count > 0) {
+                        $voucher->decrement('used_count');
+                    }
+                    $userVoucher = $voucher->users()->where('user_id', $this->user_id)->first();
+                    if ($userVoucher && $userVoucher->pivot->is_used) {
+                        $voucher->users()->updateExistingPivot($this->user_id, ['is_used' => false]);
                     }
                 }
             }
 
-            // 2. Handle Shipping (Auto Goods Issue)
-            if ($this->status === 'shipping') {
-                $existingIssue = GoodsIssue::where('order_id', $this->id)->where('status', 'completed')->first();
-                if (!$existingIssue) {
-                    // Important: If this is called in 'created' event from Filament, 
-                    // orderDetails might not be saved yet. 
-                    // However, manual admin status changes usually happen via 'updated'
-                    if ($this->orderDetails()->count() === 0) {
-                        return; // Wait for details to be available (usually in RelationManager or post-create)
-                    }
-
-                    $goodsIssue = GoodsIssue::create([
-                        'order_id' => $this->id,
-                        'type' => 'auto',
-                        'total_cogs' => 0,
-                        'status' => 'completed',
-                    ]);
-
-                    $allBatches = [];
-                    $inventoryService = new \App\Services\InventoryService();
-
-                    try {
-                        foreach ($this->orderDetails as $orderDetail) {
-                            $result = $inventoryService->reduceStock(
-                                $orderDetail->product_id,
-                                $orderDetail->quantity,
-                                $goodsIssue
-                            );
-                            $allBatches = array_merge($allBatches, $result['batches']);
-                        }
-
-                        // Tính total_cogs trực tiếp từ DB sau khi tất cả details đã được lưu
-                        // (tránh lỗi closure-reference với DB::transaction)
-                        $totalCogs = $goodsIssue->details()->sum('total_price');
-                        $goodsIssue->update(['total_cogs' => $totalCogs]);
-
-                        \App\Services\ActivityLogService::log(
-                            'auto_goods_issue',
-                            "Hệ thống tự động tạo phiếu xuất kho #{$goodsIssue->id} cho Đơn hàng #{$this->id}.",
-                            'inventory',
-                            $goodsIssue,
-                            [
-                                'order_id' => $this->id,
-                                'total_cogs' => $totalCogs,
-                                'detailed_batches' => $allBatches
-                            ]
-                        );
-                    } catch (\Exception $e) {
-                        // Xóa phiếu xuất rỗng nếu reduceStock thất bại (tránh orphan record)
-                        $goodsIssue->details()->delete();
-                        $goodsIssue->delete();
-                        \Illuminate\Support\Facades\Log::error("Goods Issue Auto-creation Failed for Order #{$this->id}: " . $e->getMessage());
+            // Nếu GoodsIssue đã completed (FIFO đã chạy, stock đã trừ) → hoàn lại stock
+            $completedIssue = GoodsIssue::where('order_id', $this->id)->where('status', 'completed')->first();
+            if ($completedIssue) {
+                $completedIssue->update(['status' => 'cancelled']);
+                foreach ($completedIssue->details as $detail) {
+                    $receiptDetail = GoodsReceiptDetail::find($detail->goods_receipt_detail_id);
+                    if ($receiptDetail) {
+                        $receiptDetail->increment('remaining_quantity', $detail->quantity);
+                        // Observer.updated() sẽ tự gọi Product.increment('stock', diff)
                     }
                 }
+            }
+
+            // Nếu GoodsIssue đang pending (FIFO chưa chạy, stock chưa bị trừ) → chỉ cancel phiếu
+            $pendingIssue = GoodsIssue::where('order_id', $this->id)->where('status', 'pending')->first();
+            if ($pendingIssue) {
+                $pendingIssue->update(['status' => 'cancelled']);
+            }
+        }
+
+        // 2. Handle Preparing — tạo GoodsIssue(pending) + stub details cho kho
+        if ($this->status === 'preparing') {
+            $existingIssue = GoodsIssue::where('order_id', $this->id)
+                ->whereIn('status', ['pending', 'completed'])
+                ->first();
+
+            if (!$existingIssue && $this->orderDetails()->count() > 0) {
+                $goodsIssue = GoodsIssue::create([
+                    'order_id'   => $this->id,
+                    'type'       => 'auto',
+                    'total_cogs' => 0,
+                    'status'     => 'pending', // Kho cần duyệt trước khi stock bị trừ
+                ]);
+
+                // Tạo stub details để kho thấy danh sách sản phẩm cần đóng gói
+                foreach ($this->orderDetails as $orderDetail) {
+                    GoodsIssueDetail::create([
+                        'goods_issue_id'           => $goodsIssue->id,
+                        'goods_receipt_detail_id'  => null, // Stub — FIFO chưa chạy
+                        'product_id'               => $orderDetail->product_id,
+                        'quantity'                 => $orderDetail->quantity,
+                        'import_price'             => 0,
+                        'total_price'              => 0,
+                    ]);
+                }
+
+                \App\Services\ActivityLogService::log(
+                    'order_preparing',
+                    "Đơn hàng #{$this->id} chuyển sang chuẩn bị hàng. Phiếu xuất #{$goodsIssue->id} tạo chờ kho duyệt.",
+                    'inventory',
+                    $goodsIssue,
+                    ['order_id' => $this->id]
+                );
             }
         }
     }
