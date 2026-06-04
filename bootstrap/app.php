@@ -10,6 +10,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->trustProxies(at: '*');
+
         // Chặn user bị banned ở mọi request (kick session sống)
         $middleware->web(append: [
             \App\Http\Middleware\EnsureUserNotBanned::class,
