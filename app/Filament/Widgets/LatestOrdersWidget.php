@@ -53,7 +53,7 @@ class LatestOrdersWidget extends BaseWidget
                     ->date('d/m/Y'),
                 Tables\Columns\TextColumn::make('total')
                     ->label('Tổng tiền')
-                    ->formatStateUsing(fn(\) => number_format((float)(\ ?? 0), 0, ',', '.') . ' ₫'),
+                    ->formatStateUsing(fn($state) => number_format((float)($state ?? 0), 0, ',', '.') . ' ₫'),
                 Tables\Columns\BadgeColumn::make('status')
                     ->label('Trạng thái')
                     ->colors([

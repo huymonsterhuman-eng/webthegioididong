@@ -53,7 +53,7 @@ class TopProductsWidget extends BaseWidget
                     ->color(fn ($state) => $state <= 0 ? 'danger' : ($state <= 5 ? 'warning' : 'gray')),
                 Tables\Columns\TextColumn::make('price')
                     ->label('Giá')
-                    ->formatStateUsing(fn(\) => number_format((float)(\ ?? 0), 0, ',', '.') . ' ₫'),
+                    ->formatStateUsing(fn($state) => number_format((float)($state ?? 0), 0, ',', '.') . ' ₫'),
             ])
             ->paginated(false);
     }

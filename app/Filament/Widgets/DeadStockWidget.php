@@ -48,7 +48,7 @@ class DeadStockWidget extends BaseWidget
                     ->sortable(),
                 Tables\Columns\TextColumn::make('price')
                     ->label('Giá bán')
-                    ->formatStateUsing(fn(\) => number_format((float)(\ ?? 0), 0, ',', '.') . ' ₫')
+                    ->formatStateUsing(fn($state) => number_format((float)($state ?? 0), 0, ',', '.') . ' ₫')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Ngày tạo mã')
