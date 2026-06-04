@@ -56,7 +56,7 @@ class InventoryResource extends Resource
                     ->sortable(),
                 Tables\Columns\TextColumn::make('stock')
                     ->label('Tồn kho hiện tại')
-                    ->numeric()
+                    ->numeric(0, '.', ',')
                     ->badge()
                     ->color(fn ($state): string => match (true) {
                         $state <= 0 => 'danger',

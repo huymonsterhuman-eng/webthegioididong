@@ -110,7 +110,7 @@ class ProductResource extends Resource
                     ->suffix(' ₫')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('stock')
-                    ->numeric()
+                    ->numeric(0, '.', ',')
                     ->sortable(),
                 Tables\Columns\IconColumn::make('is_active')
                     ->label('Trạng thái')

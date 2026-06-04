@@ -179,7 +179,7 @@ class ActivityLogResource extends Resource
                                 Infolists\Components\TextEntry::make('quantity_taken')->label('Số lượng xuất'),
                                 Infolists\Components\TextEntry::make('receipt_detail_id')->label('Từ Lô hàng #')->formatStateUsing(fn($state) => "Lô #{$state}"),
                                 Infolists\Components\TextEntry::make('parent_receipt_id')->label('Của Phiếu Nhập #')->formatStateUsing(fn($state) => "PN #{$state}"),
-                                Infolists\Components\TextEntry::make('import_price')->label('Giá nhập lô')->money('VND'),
+                                Infolists\Components\TextEntry::make('import_price')->label('Giá nhập lô')->formatStateUsing(fn(\) => number_format((float)(\ ?? 0), 0, ',', '.') . ' ₫'),
                             ])
                             ->columns(5)
                             ->columnSpanFull()
@@ -192,7 +192,7 @@ class ActivityLogResource extends Resource
                                 Infolists\Components\TextEntry::make('product_id')->label('ID sản phẩm'),
                                 Infolists\Components\TextEntry::make('product_name')->label('Tên sản phẩm'),
                                 Infolists\Components\TextEntry::make('quantity')->label('Số lượng nhập'),
-                                Infolists\Components\TextEntry::make('import_price')->label('Giá nhập đơn vị')->money('VND'),
+                                Infolists\Components\TextEntry::make('import_price')->label('Giá nhập đơn vị')->formatStateUsing(fn(\) => number_format((float)(\ ?? 0), 0, ',', '.') . ' ₫'),
                                 Infolists\Components\TextEntry::make('receipt_detail_id')->label('Vào Lô hàng #')->formatStateUsing(fn($state) => "Lô #{$state}"),
                             ])
                             ->columns(5)

@@ -40,7 +40,7 @@ class OrdersRelationManager extends RelationManager
                     ->searchable(query: fn ($query, string $search) => $query->where('id', 'like', "%{$search}%")),
                 TextColumn::make('total')
                     ->label('Tổng tiền')
-                    ->money('VND')
+                    ->formatStateUsing(fn(\) => number_format((float)(\ ?? 0), 0, ',', '.') . ' ₫')
                     ->sortable(),
                 TextColumn::make('status')
                     ->label('Trạng thái')

@@ -109,7 +109,7 @@ class PostResource extends Resource
                     ->sortable(),
                 Tables\Columns\TextColumn::make('views')
                     ->label('Lượt xem')
-                    ->numeric()
+                    ->numeric(0, '.', ',')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()

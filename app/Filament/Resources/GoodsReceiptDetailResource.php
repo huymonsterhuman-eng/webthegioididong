@@ -55,7 +55,7 @@ class GoodsReceiptDetailResource extends Resource
 
                 Tables\Columns\TextColumn::make('import_price')
                     ->label('Giá nhập lô')
-                    ->money('VND')
+                    ->formatStateUsing(fn(\) => number_format((float)(\ ?? 0), 0, ',', '.') . ' ₫')
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('quantity')

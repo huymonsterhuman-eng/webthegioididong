@@ -47,7 +47,7 @@ class ProductsRelationManager extends RelationManager
                     ->sortable(),
                 Tables\Columns\TextColumn::make('price')
                     ->label('Giá')
-                    ->money('VND')
+                    ->formatStateUsing(fn(\) => number_format((float)(\ ?? 0), 0, ',', '.') . ' ₫')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('category.name')
                     ->label('Danh mục Gốc'),

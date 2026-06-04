@@ -154,7 +154,7 @@ class ViewGoodsIssue extends ViewRecord
                             }),
                         Infolists\Components\TextEntry::make('total_cogs')
                             ->label('Tổng giá trị xuất (COGS)')
-                            ->money('vnd'),
+                            ->formatStateUsing(fn(\) => number_format((float)(\ ?? 0), 0, ',', '.') . ' ₫'),
                         Infolists\Components\TextEntry::make('created_at')
                             ->label('Ngày tạo')
                             ->dateTime('d/m/Y H:i'),

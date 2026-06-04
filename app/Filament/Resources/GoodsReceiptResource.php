@@ -134,7 +134,7 @@ class GoodsReceiptResource extends Resource
                     ->sortable(),
                 Tables\Columns\TextColumn::make('total_amount')
                     ->label('Total Amount')
-                    ->money('vnd')
+                    ->formatStateUsing(fn(\) => number_format((float)(\ ?? 0), 0, ',', '.') . ' ₫')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('details_count')
                     ->label('Items')

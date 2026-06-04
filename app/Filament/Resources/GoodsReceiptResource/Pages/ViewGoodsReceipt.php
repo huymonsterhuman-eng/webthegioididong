@@ -105,7 +105,7 @@ class ViewGoodsReceipt extends ViewRecord
                             ->label('Người tạo'),
                         Infolists\Components\TextEntry::make('total_amount')
                             ->label('Tổng giá trị')
-                            ->money('vnd'),
+                            ->formatStateUsing(fn(\) => number_format((float)(\ ?? 0), 0, ',', '.') . ' ₫'),
                         Infolists\Components\TextEntry::make('status')
                             ->label('Trạng thái')
                             ->badge()
@@ -139,7 +139,7 @@ class ViewGoodsReceipt extends ViewRecord
                                     ->label('Số lượng'),
                                 Infolists\Components\TextEntry::make('import_price')
                                     ->label('Giá nhập')
-                                    ->money('vnd'),
+                                    ->formatStateUsing(fn(\) => number_format((float)(\ ?? 0), 0, ',', '.') . ' ₫'),
                             ])
                             ->columns(3)
                             ->label(''),
