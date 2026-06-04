@@ -44,6 +44,7 @@ class BannerResource extends Resource
                         Forms\Components\FileUpload::make('image')
                             ->label('Banner Image')
                             ->image()
+                            ->disk(config('filesystems.default'))
                             ->directory('banners')
                             ->required()
                             ->columnSpanFull()
@@ -78,6 +79,7 @@ class BannerResource extends Resource
             ->columns([
                 Tables\Columns\ImageColumn::make('image')
                     ->label('Banner Preview')
+                    ->disk(config('filesystems.default'))
                     ->square()
                     ->size(80),
 
