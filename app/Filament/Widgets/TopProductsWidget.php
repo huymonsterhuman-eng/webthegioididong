@@ -35,7 +35,7 @@ class TopProductsWidget extends BaseWidget
             )
             ->columns([
                 Tables\Columns\ImageColumn::make('image')
-                    ->disk('public')
+                    ->disk(config('filesystems.default'))
                     ->defaultImageUrl(url('storage/img/placeholder.jpg'))
                     ->square()
                     ->width(36)

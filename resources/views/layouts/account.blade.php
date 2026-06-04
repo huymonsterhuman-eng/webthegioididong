@@ -17,7 +17,7 @@
                     <div class="flex items-center gap-4 mb-6 pb-6 border-b">
                         <div class="w-12 h-12 rounded-full bg-gray-200 overflow-hidden flex-shrink-0">
                             @if(auth()->user()->avatar)
-                                <img src="{{ asset('storage/' . auth()->user()->avatar) }}" alt="Avatar" class="w-full h-full object-cover">
+                                <img src="{{ \Illuminate\Support\Facades\Storage::url(auth()->user()->avatar) }}" alt="Avatar" class="w-full h-full object-cover">
                             @else
                                 <div class="w-full h-full flex items-center justify-center text-gray-500 text-xl">
                                     <i class="fa-solid fa-user"></i>

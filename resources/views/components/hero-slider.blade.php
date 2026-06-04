@@ -9,7 +9,7 @@
         ['image' => asset('storage/banners/banner3.png'), 'link' => null],
     ]) : $banners->map(function ($banner) {
         return [
-            'image' => asset('storage/' . $banner->image),
+            'image' => \Illuminate\Support\Facades\Storage::url($banner->image),
             'link' => $banner->link
         ];
     });

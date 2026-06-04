@@ -61,7 +61,7 @@ class PostResource extends Resource
                     ->default(now()),
                 Forms\Components\FileUpload::make('image')
                     ->image()
-                    ->disk('public')
+                    ->disk(config('filesystems.default'))
                     ->directory('img/posts')
                     ->columnSpanFull(),
                 Forms\Components\Textarea::make('excerpt')
@@ -79,11 +79,11 @@ class PostResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\ImageColumn::make('image')
-                    ->disk('public')
+                    ->disk(config('filesystems.default'))
                     ->getStateUsing(function (Post $record) {
-                        if (empty($record->image))
-                            return null;
-                        return str_starts_with($record->image, 'http') || str_starts_with($record->image, 'img/') ? asset($record->image) : \Illuminate\Support\Facades\Storage::url($record->image);
+                        if (empty($record->image)) return null;
+                        if (str_starts_with($record->image, 'http')) return $record->image;
+                        return $record->image;
                     })
                     ->defaultImageUrl(url('storage/img/placeholder.jpg')),
                 Tables\Columns\TextColumn::make('title')
