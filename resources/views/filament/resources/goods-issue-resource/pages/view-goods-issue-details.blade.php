@@ -40,14 +40,22 @@
                             @if($item->goodsReceiptDetail)
                                 #PN{{ str_pad($item->goodsReceiptDetail->goods_receipt_id, 3, '0', STR_PAD_LEFT) }}
                             @else
-                                N/A
+                                <span class="text-xs text-warning-500 dark:text-warning-400 italic">Chờ xử lý FIFO</span>
                             @endif
                         </td>
                         <td class="px-3 py-3 text-gray-700 dark:text-gray-300 text-right">
-                            {{ number_format($item->import_price, 0, ',', '.') }} ₫
+                            @if($item->goodsReceiptDetail)
+                                {{ number_format($item->import_price, 0, ',', '.') }} ₫
+                            @else
+                                <span class="text-xs text-gray-400 italic">—</span>
+                            @endif
                         </td>
                         <td class="px-3 py-3 text-gray-700 dark:text-gray-300 text-right">
-                            {{ number_format($item->total_price, 0, ',', '.') }} ₫
+                            @if($item->goodsReceiptDetail)
+                                {{ number_format($item->total_price, 0, ',', '.') }} ₫
+                            @else
+                                <span class="text-xs text-gray-400 italic">—</span>
+                            @endif
                         </td>
                     </tr>
                 @empty
