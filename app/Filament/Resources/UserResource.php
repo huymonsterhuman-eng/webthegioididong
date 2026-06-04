@@ -208,6 +208,41 @@ class UserResource extends Resource
                         $record->save();
                     })
                     ->visible(fn () => auth()->user()->can('manage_users')),
+
+                Tables\Actions\Action::make('change_password')
+                    ->label('Đổi mật khẩu')
+                    ->icon('heroicon-o-key')
+                    ->color('warning')
+                    ->modalHeading(fn (User $record) => "Đổi mật khẩu: {$record->username}")
+                    ->form([
+                        Forms\Components\TextInput::make('password')
+                            ->label('Mật khẩu mới')
+                            ->password()
+                            ->required()
+                            ->minLength(8)
+                            ->maxLength(255),
+                        Forms\Components\TextInput::make('password_confirmation')
+                            ->label('Xác nhận mật khẩu')
+                            ->password()
+                            ->required()
+                            ->same('password'),
+                    ])
+                    ->action(function (User $record, array $data): void {
+                        $record->update(['password' => \Illuminate\Support\Facades\Hash::make($data['password'])]);
+                        $admin = auth()->user()->username ?? 'System';
+                        \App\Services\ActivityLogService::log(
+                            'user_password_changed',
+                            "Admin {$admin} đã đổi mật khẩu của tài khoản {$record->username}.",
+                            'system',
+                            $record,
+                            []
+                        );
+                        \Filament\Notifications\Notification::make()
+                            ->success()
+                            ->title('Đã đổi mật khẩu thành công')
+                            ->send();
+                    })
+                    ->visible(fn () => auth()->user()->can('manage_users')),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

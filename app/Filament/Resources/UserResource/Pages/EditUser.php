@@ -11,7 +11,6 @@ class EditUser extends EditRecord
     protected static string $resource = UserResource::class;
 
     protected array $oldRoles = [];
-    protected bool $passwordChanged = false;
 
     protected function getHeaderActions(): array
     {
@@ -21,7 +20,6 @@ class EditUser extends EditRecord
     protected function mutateFormDataBeforeSave(array $data): array
     {
         $this->oldRoles = $this->record->roles->pluck('name')->toArray();
-        $this->passwordChanged = !empty($data['password']); // password field is only filled if it's being changed
         return $data;
     }
 
@@ -29,16 +27,6 @@ class EditUser extends EditRecord
     {
         $newRoles = $this->record->roles()->pluck('name')->toArray();
         $admin = auth()->user()->username ?? 'System';
-
-        if ($this->passwordChanged) {
-            \App\Services\ActivityLogService::log(
-                'user_password_changed',
-                "Admin {$admin} đã đổi mật khẩu của tài khoản {$this->record->username}.",
-                'system',
-                $this->record,
-                []
-            );
-        }
 
         sort($this->oldRoles);
         sort($newRoles);
