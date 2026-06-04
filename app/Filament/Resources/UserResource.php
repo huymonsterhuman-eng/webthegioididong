@@ -60,7 +60,7 @@ class UserResource extends Resource
                             ->maxLength(255)
                             ->unique(ignoreRecord: true)
                             ->disabled(fn (string $context): bool => $context === 'edit')
-                            ->dehydrated(false),
+                            ->dehydrated(fn (string $context): bool => $context === 'create'),
                         TextInput::make('email')
                             ->label('Email')
                             ->email()
@@ -68,7 +68,7 @@ class UserResource extends Resource
                             ->maxLength(255)
                             ->unique(ignoreRecord: true)
                             ->disabled(fn (string $context): bool => $context === 'edit')
-                            ->dehydrated(false),
+                            ->dehydrated(fn (string $context): bool => $context === 'create'),
                         TextInput::make('password')
                             ->label('Mật khẩu')
                             ->password()
