@@ -92,8 +92,6 @@
                                                             $img = $detail->product->image;
                                                             if (str_starts_with($img, 'http')) {
                                                                 $imageUrl = $img;
-                                                            } elseif (str_starts_with($img, 'img/')) {
-                                                                $imageUrl = url('storage/' . $img);
                                                             } else {
                                                                 $imageUrl = \Illuminate\Support\Facades\Storage::url($img);
                                                             }
