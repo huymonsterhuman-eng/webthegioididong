@@ -40,6 +40,10 @@ class ListOrders extends ListRecords
                 ->modifyQueryUsing(fn (Builder $query) => $query->where('status', 'confirmed'))
                 ->badge(Order::query()->where('status', 'confirmed')->count())
                 ->badgeColor('info'),
+            'preparing' => Tab::make('Đang chuẩn bị')
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', 'preparing'))
+                ->badge(Order::query()->where('status', 'preparing')->count())
+                ->badgeColor('purple'),
             'shipping' => Tab::make('Đang giao')
                 ->modifyQueryUsing(fn (Builder $query) => $query->where('status', 'shipping'))
                 ->badge(Order::query()->where('status', 'shipping')->count())

@@ -98,26 +98,29 @@ class CartController extends Controller
             }
         }
 
-        // Validate stock availability và active status trước khi đặt hàng
-        // Dùng available_stock = stock - committed_by_pending_orders/issues
-        foreach ($cartItems as $item) {
-            $product = \App\Models\Product::find($item['id']);
-            if (!$product) {
-                return back()->with('error', 'Một sản phẩm trong giỏ hàng không tồn tại. Vui lòng kiểm tra lại.');
-            }
-            if (!$product->is_active) {
-                return back()->with('error', "Sản phẩm \"{$product->name}\" đã ngừng kinh doanh. Vui lòng xóa khỏi giỏ hàng.");
-            }
-            if ($product->available_stock < $item['quantity']) {
-                return back()->with('error', "Sản phẩm \"{$product->name}\" không đủ hàng khả dụng (còn {$product->available_stock} cái). Vui lòng kiểm tra lại.");
-            }
-        }
-
         // Bọc toàn bộ tạo order trong transaction — tránh orphaned orders
+        // Validate stock TRONG transaction với lockForUpdate() để chặn race condition:
+        // khi 2 khách checkout cùng lúc, request thứ 2 phải chờ request thứ 1 commit
+        // xong mới đọc lại available_stock → thấy đúng số thực → chặn được oversell.
+        try {
         $order = \Illuminate\Support\Facades\DB::transaction(function () use (
             $cartItems, $subtotal, $total, $shippingName, $shippingAddress, $shippingPhone,
             $shippingMethod, $shippingFee, $voucher, $discountAmount, $validated
         ) {
+            // Validate stock + active bên trong transaction, dùng lockForUpdate()
+            foreach ($cartItems as $item) {
+                $product = \App\Models\Product::lockForUpdate()->find($item['id']);
+                if (!$product) {
+                    throw new \Exception('Một sản phẩm trong giỏ hàng không tồn tại. Vui lòng kiểm tra lại.');
+                }
+                if (!$product->is_active) {
+                    throw new \Exception("Sản phẩm \"{$product->name}\" đã ngừng kinh doanh. Vui lòng xóa khỏi giỏ hàng.");
+                }
+                if ($product->available_stock < $item['quantity']) {
+                    throw new \Exception("Sản phẩm \"{$product->name}\" không đủ hàng khả dụng (còn {$product->available_stock} cái). Vui lòng kiểm tra lại.");
+                }
+            }
+
             $order = \App\Models\Order::create([
             'user_id'          => auth()->id(),
             'subtotal'         => $subtotal,
@@ -165,6 +168,9 @@ class CartController extends Controller
 
             return $order;
         }); // end DB::transaction
+        } catch (\Exception $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
         // For momo/vnpay, construct the payment URL and redirect
         if ($validated['payment_method'] === 'vnpay') {

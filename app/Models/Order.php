@@ -71,6 +71,12 @@ class Order extends Model
         return $this->hasMany(OrderDetail::class);
     }
 
+    /** Phiếu xuất kho tự động được tạo khi đơn chuyển sang preparing */
+    public function goodsIssue(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(GoodsIssue::class)->where('type', 'auto');
+    }
+
     /** Đơn vị vận chuyển (FK đến bảng partners type=shipping_provider) */
     public function partner(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {

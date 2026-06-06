@@ -323,6 +323,23 @@ class OrderResource extends Resource
                         'cancelled' => 'Đã hủy',
                         default     => ucfirst($state),
                     }),
+                Tables\Columns\TextColumn::make('goodsIssue.status')
+                    ->label('Phiếu xuất kho')
+                    ->badge()
+                    ->formatStateUsing(fn ($state) => match ($state) {
+                        'pending'   => 'Chờ kho duyệt',
+                        'completed' => 'Đã bàn giao ĐVVC',
+                        'cancelled' => 'Đã hủy',
+                        default     => '—',
+                    })
+                    ->color(fn ($state) => match ($state) {
+                        'pending'   => 'warning',
+                        'completed' => 'success',
+                        'cancelled' => 'danger',
+                        default     => 'gray',
+                    })
+                    ->placeholder('—')
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('payment_method')
                     ->label('PT Thanh toán')
                     ->badge()
@@ -485,6 +502,19 @@ class OrderResource extends Resource
                                 ->danger()
                                 ->send();
                         }),
+
+                    Tables\Actions\Action::make('view_goods_issue')
+                        ->label('Xem phiếu xuất')
+                        ->icon('heroicon-o-clipboard-document-list')
+                        ->color('info')
+                        ->modalHeading(fn (Order $record) => 'Phiếu xuất kho — #PX-' . str_pad($record->goodsIssue?->id, 4, '0', STR_PAD_LEFT))
+                        ->modalContent(fn (Order $record) => view(
+                            'filament.modals.goods-issue-summary',
+                            ['goodsIssue' => $record->goodsIssue?->load('details.product')]
+                        ))
+                        ->modalSubmitAction(false)
+                        ->modalCancelActionLabel('Đóng')
+                        ->visible(fn (Order $record) => $record->goodsIssue !== null),
 
                     Tables\Actions\Action::make('print_invoice')
                         ->label('In hóa đơn')
