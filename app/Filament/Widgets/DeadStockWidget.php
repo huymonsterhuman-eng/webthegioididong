@@ -36,6 +36,7 @@ class DeadStockWidget extends BaseWidget
             ->columns([
                 Tables\Columns\ImageColumn::make('image')
                     ->label('Ảnh')
+                    ->disk(config('filesystems.default'))
                     ->circular(),
                 Tables\Columns\TextColumn::make('name')
                     ->label('Sản phẩm')
