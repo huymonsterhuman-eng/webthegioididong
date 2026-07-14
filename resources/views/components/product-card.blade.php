@@ -65,15 +65,34 @@
                 @endif
             </div>
 
-            <!-- Fake Rating -->
-            <div class="flex items-center text-yellow-400 text-xs mb-3">
-                <i class="fa-solid fa-star"></i>
-                <i class="fa-solid fa-star"></i>
-                <i class="fa-solid fa-star"></i>
-                <i class="fa-solid fa-star"></i>
-                <i class="fa-solid fa-star-half-stroke"></i>
-                <span class="text-gray-400 ml-1">(12)</span>
-            </div>
+            <!-- Rating (real data từ reviews không bị ẩn) -->
+            @php
+                $avgRating = (float) ($product->avg_rating ?? 0);
+                $reviewCount = (int) ($product->reviews_count ?? 0);
+                $fullStars = (int) floor($avgRating);
+                $hasHalf = ($avgRating - $fullStars) >= 0.5;
+                $emptyStars = 5 - $fullStars - ($hasHalf ? 1 : 0);
+            @endphp
+            @if($reviewCount > 0)
+                <div class="flex items-center text-xs mb-3">
+                    <div class="flex items-center text-yellow-400">
+                        @for($i = 0; $i < $fullStars; $i++)
+                            <i class="fa-solid fa-star"></i>
+                        @endfor
+                        @if($hasHalf)
+                            <i class="fa-solid fa-star-half-stroke"></i>
+                        @endif
+                        @for($i = 0; $i < $emptyStars; $i++)
+                            <i class="fa-regular fa-star text-gray-300"></i>
+                        @endfor
+                    </div>
+                    <span class="text-gray-500 ml-1.5">({{ $reviewCount }})</span>
+                </div>
+            @else
+                <div class="flex items-center text-xs mb-3 text-gray-400 italic">
+                    Chưa có đánh giá
+                </div>
+            @endif
         </div>
 
         <!-- Add to cart button using Alpine global state -->

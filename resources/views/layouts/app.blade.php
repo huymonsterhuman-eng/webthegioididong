@@ -61,6 +61,8 @@
             overflow: hidden;
         }
     </style>
+
+    @stack('styles')
 </head>
 
 <body class="antialiased overflow-x-hidden relative" x-data="cartStore()">
@@ -267,7 +269,7 @@
             </div>
             <div>
                 <ul class="space-y-2">
-                    <li><a href="#" class="hover:text-brand-blue">Giới thiệu công ty (MWG.vn)</a></li>
+                    <li><a href="{{ route('about') }}" class="hover:text-brand-blue">Giới thiệu công ty</a></li>
                     <li><a href="#" class="hover:text-brand-blue">Tuyển dụng</a></li>
                     <li><a href="#" class="hover:text-brand-blue">Gửi góp ý, khiếu nại</a></li>
                     <li><a href="#" class="hover:text-brand-blue">Tìm siêu thị (3.000+ shop)</a></li>
@@ -467,6 +469,9 @@
             }))
         })
     </script>
+
+    {{-- AI Chatbot widget --}}
+    <x-chatbot />
 </body>
 
 </html>

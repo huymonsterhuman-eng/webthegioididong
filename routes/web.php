@@ -7,6 +7,7 @@ use App\Http\Controllers\CollectionController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\BlogController;
+use App\Http\Controllers\ChatBotController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\OrderInvoiceController;
 
@@ -83,6 +84,14 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
 
 // Search Route
 Route::get('/search', [ProductController::class, 'search'])->name('search');
+
+// AI Chatbot API (Gemini)
+Route::post('/api/chatbot/message', [ChatBotController::class, 'sendMessage'])
+    ->middleware('throttle:10,1')
+    ->name('chatbot.message');
+
+// Static pages
+Route::view('/gioi-thieu', 'about')->name('about');
 
 // Catch-all SEO Product Route (Must be at the very bottom)
 Route::get('/{categorySlug}/{productSlug}', [ProductController::class, 'show'])->name('product.show');

@@ -21,7 +21,11 @@ class CategoryController extends Controller
         $categoryIds = [$category->id];
         $categoryIds = array_merge($categoryIds, $category->children()->where('is_active', true)->pluck('id')->toArray());
 
-        $query = Product::active()->with('brand')->whereIn('category_id', $categoryIds);
+        $notHidden = fn($q) => $q->where('is_hidden', false);
+        $query = Product::active()->with('brand')
+            ->withCount(['reviews as reviews_count' => $notHidden])
+            ->withAvg(['reviews as avg_rating' => $notHidden], 'rating')
+            ->whereIn('category_id', $categoryIds);
 
         if ($request->has('brand')) {
             $brand = Brand::where('slug', $request->brand)->first();

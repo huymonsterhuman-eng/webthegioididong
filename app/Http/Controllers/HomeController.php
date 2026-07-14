@@ -20,8 +20,12 @@ class HomeController extends Controller
         $collections = \App\Models\Collection::where('is_active', true)
             ->orderBy('sort_order')->get();
 
+        $reviewsCountQuery = fn($q) => $q->where('is_hidden', false);
+
         // Load some flash sale or hot products (dummy logic: highest views or something)
         $hotProducts = Product::active()->with(['category', 'brand', 'primaryImage'])
+            ->withCount(['reviews as reviews_count' => $reviewsCountQuery])
+            ->withAvg(['reviews as avg_rating' => $reviewsCountQuery], 'rating')
             ->orderBy('views', 'desc')
             ->take(10)
             ->get();
@@ -31,6 +35,8 @@ class HomeController extends Controller
         foreach ($collections as $col) {
             /** @var \App\Models\Collection $col */
             $collectionProducts[$col->id] = $col->products()->active()->with(['category', 'brand', 'primaryImage'])
+                ->withCount(['reviews as reviews_count' => $reviewsCountQuery])
+                ->withAvg(['reviews as avg_rating' => $reviewsCountQuery], 'rating')
                 ->inRandomOrder()
                 ->take(10)
                 ->get();

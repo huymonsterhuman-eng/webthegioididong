@@ -22,9 +22,13 @@ class CollectionController extends Controller
             $collectionIds = array_merge($collectionIds, $collection->children->pluck('id')->toArray());
         }
 
-        $query = \App\Models\Product::active()->with(['brand', 'primaryImage'])->whereHas('collections', function ($q) use ($collectionIds) {
-            $q->whereIn('collections.id', $collectionIds);
-        });
+        $notHidden = fn($q) => $q->where('is_hidden', false);
+        $query = \App\Models\Product::active()->with(['brand', 'primaryImage'])
+            ->withCount(['reviews as reviews_count' => $notHidden])
+            ->withAvg(['reviews as avg_rating' => $notHidden], 'rating')
+            ->whereHas('collections', function ($q) use ($collectionIds) {
+                $q->whereIn('collections.id', $collectionIds);
+            });
 
         if ($request->has('brand')) {
             $brand = Brand::where('slug', $request->brand)->first();

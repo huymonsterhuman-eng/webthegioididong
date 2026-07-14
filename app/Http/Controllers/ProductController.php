@@ -15,8 +15,11 @@ class ProductController extends Controller
     public function search(Request $request)
     {
         $query = $request->input('q');
+        $notHidden = fn($q) => $q->where('is_hidden', false);
 
         $products = Product::active()->with(['category', 'brand', 'primaryImage'])
+            ->withCount(['reviews as reviews_count' => $notHidden])
+            ->withAvg(['reviews as avg_rating' => $notHidden], 'rating')
             ->where(function ($q) use ($query) {
                 $q->where('name', 'like', "%{$query}%")
                     ->orWhere('description', 'like', "%{$query}%");
@@ -38,7 +41,11 @@ class ProductController extends Controller
         // Increase views
         $product->increment('views');
 
+        $notHidden = fn($q) => $q->where('is_hidden', false);
+
         $relatedProducts = Product::active()->with(['category', 'brand', 'primaryImage'])
+            ->withCount(['reviews as reviews_count' => $notHidden])
+            ->withAvg(['reviews as avg_rating' => $notHidden], 'rating')
             ->where('category_id', $product->category_id)
             ->where('id', '!=', $product->id)
             ->inRandomOrder()

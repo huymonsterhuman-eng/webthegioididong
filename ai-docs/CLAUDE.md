@@ -2,6 +2,8 @@
 
 Tài liệu này cung cấp cái nhìn tổng quan kỹ thuật cho dự án TheGioiDiDong Clone, tối ưu hóa cho AI Assistant và Developers.
 
+> 🚀 **Production Deploy:** Đọc [`deployment.md`](./deployment.md) trước khi sửa bất cứ thứ gì liên quan đến upload/ảnh/env — có cả quy tắc code tránh vỡ ảnh trên R2.
+
 ## Tech Stack
 - **Backend:** Laravel 12 (PHP 8.2+)
 - **Admin Panel:** Filament v3 (TALL Stack - Tailwind, Alpine.js, Laravel, Livewire)
